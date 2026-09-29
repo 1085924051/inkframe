@@ -1,0 +1,10 @@
+{
+  "title": "雨夜窗边的沉默",
+  "duration": "04s",
+  "size": "中近景",
+  "camera": "平视固定机位",
+  "movement": "缓慢推近",
+  "imagePrompt": "角色、场景、光线与构图描述；请保留 Character Bible",
+  "videoPrompt": "主体动作、镜头运动、节奏与环境变化；请保留 Character Bible",
+  "negativePrompt": "低清晰度、变形、额外肢体、角色身份漂移"
+}

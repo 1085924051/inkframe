@@ -1,0 +1,19 @@
+{
+  "id": "custom-my-writer",
+  "name": "我的作家风格",
+  "era": "当代",
+  "summary": "用一句话描述文字气质",
+  "tags": ["克制", "细节", "留白"],
+  "axes": [
+    { "label": "冷峻度", "value": 50 },
+    { "label": "讽刺性", "value": 50 },
+    { "label": "意象密度", "value": 50 },
+    { "label": "对话张力", "value": 50 },
+    { "label": "节奏", "value": 50 },
+    { "label": "口语化", "value": 50 },
+    { "label": "悲悯感", "value": 50 },
+    { "label": "荒诞感", "value": 50 },
+    { "label": "留白", "value": 50 }
+  ],
+  "source": "distilled"
+}

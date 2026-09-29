@@ -1,0 +1,353 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  role         String    @default("USER") // USER | ADMIN
+  status       String    @default("active") // active | disabled
+  projects     Project[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model WriterStyle {
+  id          String   @id
+  name        String
+  era         String?
+  summary     String
+  tags        String
+  axesJson    String
+  sample      String?
+  sourceDigestJson String?
+  ownerId     String?
+  isPublic    Boolean  @default(false)
+  shareToken  String?  @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  projects    Project[]
+}
+
+model DirectorStyle {
+  id          String   @id
+  name        String
+  summary     String
+  paletteJson String
+  descriptor  String
+  lora        String?
+  ownerId     String?
+  isPublic    Boolean  @default(false)
+  shareToken  String?  @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  projects    Project[]
+}
+
+model Project {
+  id              String        @id @default(cuid())
+  title           String
+  topic           String
+  writerStyleId   String
+  directorStyleId String
+  userId          String?
+  writerStyle     WriterStyle   @relation(fields: [writerStyleId], references: [id])
+  directorStyle   DirectorStyle @relation(fields: [directorStyleId], references: [id])
+  user            User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  script          Script?
+  scenes          Scene[]
+  characters      Character[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  usageRecords    UsageRecord[]
+  finalVideoUrl   String?
+  renderJobs      RenderJob[]
+  format          String        @default("single")
+  episodeCount    Int           @default(1)
+  targetWords     Int           @default(500)
+  scriptLength    String        @default("short")
+  narrativePerspective String   @default("third-person")
+  storyBibleJson  String?
+  episodes        Episode[]
+  assets          Asset[]
+  imageJobs       ImageJob[]
+  modelChannels   ModelChannel[]
+}
+
+model Script {
+  id        String   @id @default(cuid())
+  projectId String   @unique
+  content   String
+  logline   String?
+  version   Int      @default(1)
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model Character {
+  id               String     @id
+  projectId        String
+  name             String
+  role             String
+  description      String
+  wardrobe         String
+  accessories      String?
+  goal             String?
+  traits           String?
+  age              String?
+  appearancePrompt String?
+  imagePrompt      String?
+  negativePrompt   String?
+  referenceAssetId String?
+  imageProvider    String?
+  imageModel       String?
+  imageStatus      String     @default("draft") // draft | queued | processing | complete | failed
+  project          Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  imageJobs        ImageJob[]
+  @@index([projectId])
+}
+
+model Scene {
+  id        String   @id @default(cuid())
+  projectId String
+  number    Int
+  title     String
+  content   String
+  mood      String?
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  episodeId String?
+  episode   Episode? @relation(fields: [episodeId], references: [id], onDelete: SetNull)
+  shots     Shot[]
+  imageJobs ImageJob[]
+  createdAt DateTime @default(now())
+  @@unique([projectId, number])
+  @@index([episodeId])
+}
+
+model Episode {
+  id          String   @id @default(cuid())
+  projectId   String
+  number      Int
+  title       String
+  outline     String?
+  logline     String?
+  script      String?
+  continuityJson String?
+  characterIdsJson String?
+  status      String   @default("draft")
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  scenes      Scene[]
+  assets      Asset[]
+  imageJobs   ImageJob[]
+  renderJobs  RenderJob[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@unique([projectId, number])
+  @@index([projectId])
+}
+
+model Shot {
+  id             String     @id @default(cuid())
+  sceneId        String
+  title          String     @default("")
+  duration       String
+  size           String
+  camera         String
+  movement       String
+  imagePrompt    String
+  videoPrompt    String
+  negativePrompt String
+  characterContext String?
+  characterIdsJson String?
+  referenceAssetIdsJson String?
+  status         String     @default("draft") // draft | queued | processing | complete | failed
+  scene          Scene      @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  jobs           VideoJob[]
+  assets         Asset[]
+  createdAt      DateTime   @default(now())
+}
+
+model ImageJob {
+  id           String    @id @default(cuid())
+  projectId    String
+  episodeId    String?
+  characterId  String?
+  sceneId      String?
+  modelId      String?
+  assetType    String    @default("character") // character | scene
+  view         String?
+  shotId       String?
+  provider     String
+  model        String?
+  prompt       String
+  negativePrompt String?
+  status       String    @default("queued") // queued | processing | complete | failed
+  progress     Int       @default(0)
+  externalId   String?
+  outputUrl    String?
+  error        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  project      Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  episode      Episode?  @relation(fields: [episodeId], references: [id], onDelete: SetNull)
+  character    Character? @relation(fields: [characterId], references: [id], onDelete: SetNull)
+  scene        Scene?    @relation(fields: [sceneId], references: [id], onDelete: SetNull)
+  channelModel ModelChannelModel? @relation(fields: [modelId], references: [id], onDelete: SetNull)
+  @@index([projectId, status])
+  @@index([characterId, status])
+}
+
+model VideoJob {
+  id         String   @id @default(cuid())
+  shotId     String
+  provider   String
+  model      String?
+  externalId String?
+  status     String   @default("queued") // queued | processing | complete | failed
+  progress   Int      @default(0)
+  outputUrl  String?
+  error      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  shot       Shot     @relation(fields: [shotId], references: [id], onDelete: Cascade)
+  @@index([status])
+}
+
+model RenderJob {
+  id         String   @id @default(cuid())
+  projectId  String
+  episodeId  String?
+  status     String   @default("queued") // queued | processing | complete | failed
+  progress   Int      @default(0)
+  outputUrl  String?
+  error      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  episode    Episode? @relation(fields: [episodeId], references: [id], onDelete: SetNull)
+  @@index([projectId, episodeId, status])
+}
+
+model SystemSetting {
+  key       String   @id
+  value     String   @default("")
+  isSecret  Boolean  @default(false)
+  group     String   @default("model")
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actorName  String
+  action     String
+  targetType String
+  targetId   String?
+  detail     String?
+  createdAt  DateTime @default(now())
+  @@index([createdAt])
+}
+
+model ModelProfile {
+  id          String   @id @default(cuid())
+  name        String
+  kind        String   // text | storyboard | image | video
+  provider    String
+  baseUrl     String
+  apiKey      String   @default("")
+  model       String
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([kind, enabled])
+}
+
+model ModelChannel {
+  id          String             @id @default(cuid())
+  name        String
+  provider    String
+  baseUrl     String
+  enabled     Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  projectId   String?
+  project     Project?           @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  keys        ModelChannelKey[]
+  models      ModelChannelModel[]
+  @@index([enabled])
+}
+
+model ModelChannelKey {
+  id          String       @id @default(cuid())
+  channelId   String
+  label       String
+  apiKey      String
+  enabled     Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  channel     ModelChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  @@index([channelId, enabled])
+}
+
+model ModelChannelModel {
+  id          String       @id @default(cuid())
+  channelId   String
+  name        String
+  kind        String       // text | storyboard | image | video
+  enabled     Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  channel     ModelChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  imageJobs   ImageJob[]
+  @@index([kind, enabled])
+}
+
+model Asset {
+  id           String   @id @default(cuid())
+  projectId    String
+  episodeId    String?
+  shotId       String?
+  kind         String
+  status       String   @default("draft")
+  name         String
+  url          String?
+  thumbnailUrl String?
+  provider     String?
+  externalId   String?
+  metadataJson String?
+  sourceKey    String?
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  episode      Episode? @relation(fields: [episodeId], references: [id], onDelete: SetNull)
+  shot         Shot?    @relation(fields: [shotId], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  @@index([projectId])
+  @@index([episodeId])
+  @@index([shotId])
+  @@unique([projectId, sourceKey])
+}
+
+
+model UsageRecord {
+  id           String   @id @default(cuid())
+  projectId    String?
+  userId       String?
+  kind         String
+  provider     String
+  model        String?
+  inputTokens  Int      @default(0)
+  outputTokens Int      @default(0)
+  costCents    Int      @default(0)
+  costMicros   Int      @default(0)
+  metadata     String?
+  createdAt    DateTime @default(now())
+  project      Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  @@index([projectId])
+  @@index([createdAt])
+}

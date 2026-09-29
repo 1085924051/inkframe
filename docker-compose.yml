@@ -1,0 +1,23 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=file:/app/data/dev.db
+      - REDIS_URL=redis://redis:6379
+      - AUTH_SECRET=${AUTH_SECRET:-inkframe-dev-secret-change-me}
+      - SETTINGS_ENCRYPTION_KEY=${SETTINGS_ENCRYPTION_KEY:-}
+      - TRUST_PROXY=${TRUST_PROXY:-0}
+    volumes:
+      - inkframe-data:/app/data
+    restart: unless-stopped
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+volumes:
+  inkframe-data:

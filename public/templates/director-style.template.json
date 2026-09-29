@@ -1,0 +1,8 @@
+{
+  "id": "custom-my-director",
+  "name": "我的导演视觉",
+  "summary": "用一句话描述画面质感",
+  "palette": ["#1d2529", "#667477", "#c9ad77"],
+  "descriptor": "cinematic realism, controlled contrast, coherent lighting, consistent character identity",
+  "lora": ""
+}
