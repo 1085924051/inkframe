@@ -148,6 +148,10 @@ function normalizeChannelBaseUrl(config: Pick<ConfiguredVideoChannel, "provider"
   return baseUrl;
 }
 
+function yuyuReferenceUrls(urls: string[]) {
+  return urls.filter((url) => /^https?:\/\//i.test(url) || /^asset:\/\//i.test(url));
+}
+
 function channelStatus(data: Record<string, unknown>) {
   const nested = (data.data as Record<string, unknown> | undefined) || {};
   const content = (data.content as Record<string, unknown> | undefined) || (nested.content as Record<string, unknown> | undefined) || {};
@@ -170,9 +174,10 @@ class ConfiguredChannelVideoProvider implements VideoProvider {
     assertVideoReferenceCapacity(this.config.provider, shot.referenceAssetUrls);
     const refs = shot.referenceAssetUrls || [];
     if (isYuYuChannel(this.config)) {
+      const usableRefs = yuyuReferenceUrls(refs);
       const data = await this.request("/contents/generations/tasks", { method: "POST", body: JSON.stringify({
         model: this.config.model,
-        content: [{ type: "text", text: shot.videoPrompt }, ...refs.map((url) => ({ type: "image_url", role: "reference_image", image_url: { url } }))],
+        content: [{ type: "text", text: shot.videoPrompt }, ...usableRefs.map((url) => ({ type: "image_url", role: "reference_image", image_url: { url } }))],
         resolution: "720p",
         ratio: "16:9",
         duration: seedanceDuration(this.config.model, shot.duration),
