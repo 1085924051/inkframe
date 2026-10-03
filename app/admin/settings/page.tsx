@@ -9,7 +9,7 @@ type ModelChannel = { id: string; name: string; provider: string; baseUrl: strin
 type ModelDraft = { name: string; kind: ChannelModel["kind"]; enabled?: boolean };
 type ChannelForm = { name: string; provider: string; baseUrl: string; keys: { id?: string; label: string; apiKey: string; maskedKey?: string }[]; models: ModelDraft[] };
 
-const PROVIDERS = [["openai-compatible", "OpenAI 兼容"], ["vllm", "本地 vLLM"], ["replicate", "Replicate"], ["comfyui", "ComfyUI"], ["runway", "Runway"], ["kling", "可灵 Kling"], ["seedance", "Seedance"], ["custom", "自定义 HTTP"]] as const;
+const PROVIDERS = [["openai-compatible", "OpenAI 兼容"], ["vllm", "本地 vLLM"], ["replicate", "Replicate"], ["comfyui", "ComfyUI"], ["runway", "Runway"], ["kling", "可灵 Kling"], ["seedance", "Seedance（火山引擎）"], ["yuyu", "YuYu / Seedance"], ["custom", "自定义 HTTP"]] as const;
 const KIND_LABEL: Record<ChannelModel["kind"], string> = { text: "文本", storyboard: "分镜编排", image: "图像", video: "视频" };
 const EMPTY_FORM: ChannelForm = { name: "", provider: "openai-compatible", baseUrl: "", keys: [{ label: "主 Key", apiKey: "" }], models: [{ name: "", kind: "text" }] };
 function emptyForm(): ChannelForm { return { ...EMPTY_FORM, keys: [{ ...EMPTY_FORM.keys[0] }], models: [{ ...EMPTY_FORM.models[0] }] }; }

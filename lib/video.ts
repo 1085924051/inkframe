@@ -42,6 +42,15 @@ function resolveStatus(raw: string): VideoJobStatus {
   return "processing";
 }
 
+function seedanceDuration(model: string, duration: string): number {
+  const requested = Math.round(shotDurationSeconds(duration));
+  const normalized = model.toLowerCase();
+  if (normalized.includes("1-5") || normalized.includes("1.5") || normalized.includes("2.0") || normalized.includes("2-")) {
+    return Math.max(4, Math.min(15, requested));
+  }
+  return Math.max(2, Math.min(12, requested));
+}
+
 // 预留：Runway 图生视频（端点以官方文档为准）
 export class RunwayVideoProvider implements VideoProvider {
   readonly name = "runway";
@@ -128,12 +137,24 @@ export class SeedanceVideoProvider implements VideoProvider {
 
 type ConfiguredVideoChannel = { id: string; provider: string; baseUrl: string; key: string; model: string };
 
+function isYuYuChannel(config: Pick<ConfiguredVideoChannel, "provider" | "baseUrl">) {
+  const provider = config.provider.toLowerCase();
+  return provider === "yuyu" || provider === "yu-yu" || config.baseUrl.toLowerCase().includes("api.yu-yu.ai");
+}
+
+function normalizeChannelBaseUrl(config: Pick<ConfiguredVideoChannel, "provider" | "baseUrl">) {
+  let baseUrl = config.baseUrl.trim().replace(/\/$/, "");
+  if (isYuYuChannel(config)) baseUrl = baseUrl.replace(/\/contents\/generations\/tasks\/?$/i, "");
+  return baseUrl;
+}
+
 function channelStatus(data: Record<string, unknown>) {
   const nested = (data.data as Record<string, unknown> | undefined) || {};
-  const raw = String(data.status || nested.status || nested.task_status || "processing");
-  const result = (data.output as Record<string, unknown> | undefined) || nested;
-  const videos = result.videos as { url?: string }[] | undefined;
-  const outputUrl = (result.url || result.video_url || result.output_url || videos?.[0]?.url) as string | undefined;
+  const content = (data.content as Record<string, unknown> | undefined) || (nested.content as Record<string, unknown> | undefined) || {};
+  const output = (data.output as Record<string, unknown> | undefined) || (nested.output as Record<string, unknown> | undefined) || {};
+  const raw = String(data.status || nested.status || data.task_status || nested.task_status || "processing");
+  const videos = (output.videos || content.videos || nested.videos || data.videos) as { url?: string }[] | undefined;
+  const outputUrl = (content.video_url || content.url || output.video_url || output.url || output.output_url || nested.video_url || nested.url || data.video_url || data.url || videos?.[0]?.url) as string | undefined;
   const status = resolveStatus(raw);
   return { status, progress: status === "complete" ? 100 : 50, outputUrl };
 }
@@ -146,15 +167,28 @@ class ConfiguredChannelVideoProvider implements VideoProvider {
   async submit(shot: Shot) {
     assertVideoReferenceCapacity(this.config.provider, shot.referenceAssetUrls);
     const refs = shot.referenceAssetUrls || [];
+    if (isYuYuChannel(this.config)) {
+      const data = await this.request("/contents/generations/tasks", { method: "POST", body: JSON.stringify({
+        model: this.config.model,
+        content: [{ type: "text", text: shot.videoPrompt }, ...refs.map((url) => ({ type: "image_url", image_url: { url } }))],
+        resolution: "720p",
+        ratio: "16:9",
+        duration: seedanceDuration(this.config.model, shot.duration),
+        watermark: false,
+      }) });
+      const id = data.id || (data.data as Record<string, unknown> | undefined)?.id || data.task_id;
+      if (!id) throw new Error("YuYu 未返回任务 ID");
+      return { externalId: String(id) };
+    }
     if (this.config.provider === "runway") { const data = await this.request("/v1/image_to_video", { method: "POST", body: JSON.stringify({ model: this.config.model, prompt_text: shot.videoPrompt, ...(refs[0] ? { prompt_image: refs[0] } : {}), duration: shotDurationSeconds(shot.duration), ratio: "1280:720" }) }); return { externalId: String(data.id) }; }
     if (this.config.provider === "kling") { const data = await this.request("/v1/videos/image2video", { method: "POST", body: JSON.stringify({ model_name: this.config.model, prompt: shot.videoPrompt, ...(refs[0] ? { image: refs[0] } : {}), duration: String(shotDurationSeconds(shot.duration)), mode: "std" }) }); return { externalId: String((data.data as Record<string, unknown> | undefined)?.task_id || data.task_id) }; }
-    if (this.config.provider === "seedance") { const data = await this.request("/contents/generations/tasks", { method: "POST", body: JSON.stringify({ model: this.config.model, content: [{ type: "text", text: shot.videoPrompt }, ...refs.map((url) => ({ type: "image_url", image_url: { url } }))] }) }); return { externalId: String(data.id) }; }
+    if (this.config.provider === "seedance") { const data = await this.request("/contents/generations/tasks", { method: "POST", body: JSON.stringify({ model: this.config.model, content: [{ type: "text", text: shot.videoPrompt }, ...refs.map((url) => ({ type: "image_url", image_url: { url } }))], resolution: "720p", ratio: "16:9", duration: seedanceDuration(this.config.model, shot.duration), watermark: false }) }); return { externalId: String(data.id || (data.data as Record<string, unknown> | undefined)?.id) }; }
     const data = await this.request("/videos/generations", { method: "POST", body: JSON.stringify({ model: this.config.model, prompt: shot.videoPrompt, negative_prompt: shot.negativePrompt, duration: shotDurationSeconds(shot.duration), aspect_ratio: "16:9", reference_images: refs }) });
     const id = data.id || (data.data as Record<string, unknown> | undefined)?.id || (data.data as Record<string, unknown> | undefined)?.task_id;
     if (!id) throw new Error("视频渠道未返回任务 ID");
     return { externalId: String(id) };
   }
-  async getStatus(externalId: string) { const path = this.config.provider === "runway" ? `/v1/tasks/${externalId}` : this.config.provider === "kling" ? `/v1/videos/image2video/${externalId}` : this.config.provider === "seedance" ? `/contents/generations/tasks/${externalId}` : `/videos/generations/${externalId}`; return channelStatus(await this.request(path)); }
+  async getStatus(externalId: string) { const path = isYuYuChannel(this.config) || this.config.provider === "seedance" ? `/contents/generations/tasks/${externalId}` : this.config.provider === "runway" ? `/v1/tasks/${externalId}` : this.config.provider === "kling" ? `/v1/videos/image2video/${externalId}` : `/videos/generations/${externalId}`; return channelStatus(await this.request(path)); }
 }
 
 export async function configuredChannelVideoProvider(providerName: string): Promise<VideoProvider | null> {
@@ -162,7 +196,7 @@ export async function configuredChannelVideoProvider(providerName: string): Prom
   const id = providerName.slice("channel:".length);
   const model = await prisma.modelChannelModel.findUnique({ where: { id }, include: { channel: { include: { keys: { where: { enabled: true }, take: 1 } } } } });
   if (!model || model.kind !== "video" || !model.enabled || !model.channel.enabled) return null;
-  return new ConfiguredChannelVideoProvider({ id: model.id, provider: model.channel.provider, baseUrl: model.channel.baseUrl, key: model.channel.keys[0] ? decryptSecret(model.channel.keys[0].apiKey) : "", model: model.name });
+  return new ConfiguredChannelVideoProvider({ id: model.id, provider: model.channel.provider, baseUrl: normalizeChannelBaseUrl({ provider: model.channel.provider, baseUrl: model.channel.baseUrl }), key: model.channel.keys[0] ? decryptSecret(model.channel.keys[0].apiKey) : "", model: model.name });
 }
 
 export const videoProviders: Record<string, VideoProvider> = {
