@@ -10,7 +10,7 @@ export type VideoJob = { id: string; shotId: string; provider: string; model?: s
 export interface VideoProvider {
   readonly name: string;
   submit(shot: Shot): Promise<{ externalId: string }>;
-  getStatus(externalId: string): Promise<{ status: VideoJobStatus; progress: number; outputUrl?: string }>;
+  getStatus(externalId: string): Promise<{ status: VideoJobStatus; progress: number; outputUrl?: string; error?: string }>;
 }
 
 export function assertVideoReferenceCapacity(provider: string, urls: string[] = []) {
@@ -38,7 +38,7 @@ async function resolveProviderConfig(urlKey: string, keyKey: string, defaultUrl:
 function resolveStatus(raw: string): VideoJobStatus {
   const status = String(raw || "").toUpperCase();
   if (status === "SUCCEEDED" || status === "COMPLETED" || status === "SUCCESS" || status === "DONE") return "complete";
-  if (status === "FAILED" || status === "ERROR" || status === "CANCELLED") return "failed";
+  if (status === "FAILED" || status === "ERROR" || status === "CANCELLED" || status === "EXPIRED") return "failed";
   return "processing";
 }
 
@@ -117,7 +117,7 @@ export class SeedanceVideoProvider implements VideoProvider {
     const response = await fetch(`${baseUrl}/contents/generations/tasks`, {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model, content: [{ type: "text", text: shot.videoPrompt }, ...(shot.referenceAssetUrls || []).map((url) => ({ type: "image_url", image_url: { url } }))] }),
+      body: JSON.stringify({ model, content: [{ type: "text", text: shot.videoPrompt }, ...(shot.referenceAssetUrls || []).map((url) => ({ type: "image_url", role: "reference_image", image_url: { url } }))] }),
       cache: "no-store",
     });
     if (!response.ok) throw new Error(`Seedance 提交失败：HTTP ${response.status}`);
@@ -155,8 +155,10 @@ function channelStatus(data: Record<string, unknown>) {
   const raw = String(data.status || nested.status || data.task_status || nested.task_status || "processing");
   const videos = (output.videos || content.videos || nested.videos || data.videos) as { url?: string }[] | undefined;
   const outputUrl = (content.video_url || content.url || output.video_url || output.url || output.output_url || nested.video_url || nested.url || data.video_url || data.url || videos?.[0]?.url) as string | undefined;
+  const errorValue = data.error || nested.error;
+  const error = typeof errorValue === "string" ? errorValue : errorValue && typeof errorValue === "object" ? String((errorValue as Record<string, unknown>).message || (errorValue as Record<string, unknown>).code || "") : undefined;
   const status = resolveStatus(raw);
-  return { status, progress: status === "complete" ? 100 : 50, outputUrl };
+  return { status, progress: status === "complete" ? 100 : 50, outputUrl, error: error || undefined };
 }
 
 class ConfiguredChannelVideoProvider implements VideoProvider {
@@ -170,7 +172,7 @@ class ConfiguredChannelVideoProvider implements VideoProvider {
     if (isYuYuChannel(this.config)) {
       const data = await this.request("/contents/generations/tasks", { method: "POST", body: JSON.stringify({
         model: this.config.model,
-        content: [{ type: "text", text: shot.videoPrompt }, ...refs.map((url) => ({ type: "image_url", image_url: { url } }))],
+        content: [{ type: "text", text: shot.videoPrompt }, ...refs.map((url) => ({ type: "image_url", role: "reference_image", image_url: { url } }))],
         resolution: "720p",
         ratio: "16:9",
         duration: seedanceDuration(this.config.model, shot.duration),
@@ -182,7 +184,7 @@ class ConfiguredChannelVideoProvider implements VideoProvider {
     }
     if (this.config.provider === "runway") { const data = await this.request("/v1/image_to_video", { method: "POST", body: JSON.stringify({ model: this.config.model, prompt_text: shot.videoPrompt, ...(refs[0] ? { prompt_image: refs[0] } : {}), duration: shotDurationSeconds(shot.duration), ratio: "1280:720" }) }); return { externalId: String(data.id) }; }
     if (this.config.provider === "kling") { const data = await this.request("/v1/videos/image2video", { method: "POST", body: JSON.stringify({ model_name: this.config.model, prompt: shot.videoPrompt, ...(refs[0] ? { image: refs[0] } : {}), duration: String(shotDurationSeconds(shot.duration)), mode: "std" }) }); return { externalId: String((data.data as Record<string, unknown> | undefined)?.task_id || data.task_id) }; }
-    if (this.config.provider === "seedance") { const data = await this.request("/contents/generations/tasks", { method: "POST", body: JSON.stringify({ model: this.config.model, content: [{ type: "text", text: shot.videoPrompt }, ...refs.map((url) => ({ type: "image_url", image_url: { url } }))], resolution: "720p", ratio: "16:9", duration: seedanceDuration(this.config.model, shot.duration), watermark: false }) }); return { externalId: String(data.id || (data.data as Record<string, unknown> | undefined)?.id) }; }
+    if (this.config.provider === "seedance") { const data = await this.request("/contents/generations/tasks", { method: "POST", body: JSON.stringify({ model: this.config.model, content: [{ type: "text", text: shot.videoPrompt }, ...refs.map((url) => ({ type: "image_url", role: "reference_image", image_url: { url } }))], resolution: "720p", ratio: "16:9", duration: seedanceDuration(this.config.model, shot.duration), watermark: false }) }); return { externalId: String(data.id || (data.data as Record<string, unknown> | undefined)?.id) }; }
     const data = await this.request("/videos/generations", { method: "POST", body: JSON.stringify({ model: this.config.model, prompt: shot.videoPrompt, negative_prompt: shot.negativePrompt, duration: shotDurationSeconds(shot.duration), aspect_ratio: "16:9", reference_images: refs }) });
     const id = data.id || (data.data as Record<string, unknown> | undefined)?.id || (data.data as Record<string, unknown> | undefined)?.task_id;
     if (!id) throw new Error("视频渠道未返回任务 ID");

@@ -72,7 +72,7 @@ export async function processVideoJob(id: string): Promise<void> {
         if (shot) await prisma.asset.upsert({ where: { id: `video-${job.id}` }, create: { id: `video-${job.id}`, projectId: shot.scene.projectId, shotId: shot.id, kind: "video", status: "complete", name: `Shot ${shot.id} video`, url: current.outputUrl, provider: job.provider, externalId: job.externalId }, update: { status: "complete", url: current.outputUrl, provider: job.provider, externalId: job.externalId } });
       }
     } else if (current.status === "failed") {
-      return failJob(id, new Error("provider reported failure"));
+      return failJob(id, new Error(current.error || "provider reported failure"));
     } else {
       await updateVideoJob(id, { status: "processing", progress: Math.max(10, current.progress ?? job.progress) });
     }
