@@ -9,6 +9,7 @@ import { decryptSecret, encryptSecret, encryptionEnabled, maskSecret } from "./s
 export type SettingMeta = { key: string; label: string; group: "text" | "storyboard" | "image" | "video"; isSecret: boolean };
 
 export const SETTING_META: SettingMeta[] = [
+  { key: "ASSET_PUBLIC_BASE_URL", label: "素材公网访问地址", group: "video", isSecret: false },
   { key: "LLM_API_URL", label: "文本模型接口地址", group: "text", isSecret: false },
   { key: "LLM_API_KEY", label: "文本模型 API Key", group: "text", isSecret: true },
   { key: "LLM_MODEL", label: "文本模型名称", group: "text", isSecret: false },

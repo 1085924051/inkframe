@@ -148,8 +148,16 @@ function normalizeChannelBaseUrl(config: Pick<ConfiguredVideoChannel, "provider"
   return baseUrl;
 }
 
-function yuyuReferenceUrls(urls: string[]) {
-  return urls.filter((url) => /^https?:\/\//i.test(url) || /^asset:\/\//i.test(url));
+async function yuyuReferenceUrls(shot: Shot) {
+  const baseUrl = (await getModelConfigValue("ASSET_PUBLIC_BASE_URL")).trim().replace(/\/$/, "");
+  const urls = shot.referenceAssetUrls || [];
+  const ids = shot.referenceAssetIds || [];
+  return urls.map((url, index) => {
+    if (/^https?:\/\//i.test(url) || /^asset:\/\//i.test(url)) return url;
+    const assetId = ids[index];
+    if (!baseUrl || !assetId) return null;
+    try { return new URL(`/api/public/assets/${encodeURIComponent(assetId)}`, `${baseUrl}/`).toString(); } catch { return null; }
+  }).filter((url): url is string => Boolean(url));
 }
 
 function channelStatus(data: Record<string, unknown>) {
@@ -174,7 +182,7 @@ class ConfiguredChannelVideoProvider implements VideoProvider {
     assertVideoReferenceCapacity(this.config.provider, shot.referenceAssetUrls);
     const refs = shot.referenceAssetUrls || [];
     if (isYuYuChannel(this.config)) {
-      const usableRefs = yuyuReferenceUrls(refs);
+      const usableRefs = await yuyuReferenceUrls(shot);
       const data = await this.request("/contents/generations/tasks", { method: "POST", body: JSON.stringify({
         model: this.config.model,
         content: [{ type: "text", text: shot.videoPrompt }, ...usableRefs.map((url) => ({ type: "image_url", role: "reference_image", image_url: { url } }))],
