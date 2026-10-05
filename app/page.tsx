@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Check, Clapperboard, Download, FileText, Film, Layers3, Library, PackageOpen, PanelRightOpen, Plus, RefreshCw, Shield, Sparkles, Upload, WandSparkles, X, UserRound, ImageIcon, Trash2 } from "lucide-react";
 import { directorStyles, writerStyles } from "@/lib/styles";
-import type { Character, DirectorStyle, EpisodeSummary, GeneratedProject, NarrativePerspective, ProjectFormat, ScriptLength, Shot, ShotStatus, WriterStyle } from "@/lib/types";
+import type { Character, DirectorStyle, EpisodeSummary, GeneratedProject, NarrativePerspective, ProjectFormat, ResolutionPreset, ScriptLength, Shot, ShotStatus, WriterStyle } from "@/lib/types";
 import { buildCharacterReferencePrompt } from "@/lib/character-prompts";
+import { DEFAULT_RESOLUTION_PRESET, RESOLUTION_OPTIONS, getResolutionOption } from "@/lib/resolution";
 
 type Step = "brief" | "style" | "characters" | "script" | "shots" | "video" | "assets";
 type ProjectSummary = { id: string; title: string; topic: string; logline: string; sceneCount: number; shotCount: number; format?: string; episodeCount?: number; targetWords?: number; createdAt: string };
@@ -125,6 +126,11 @@ function ShotAssociationEditor({ shot, characters, assets, onChange }: { shot: P
       <div className="association-options">{referenceAssets.length ? referenceAssets.map((asset) => <label key={asset.id} className="association-option"><input type="checkbox" checked={referenceAssetIds.includes(asset.id)} onChange={() => onChange({ referenceAssetIds: toggle(referenceAssetIds, asset.id) })} /><span>{asset.name}</span><em>{assetMetadata(asset).category === "scene" ? "场景资产" : "外部素材"}</em></label>) : <small className="muted-line">当前集还没有可用场景资产或外部参考素材。</small>}</div>
     </div>
   </div>;
+}
+
+function ProjectResolutionSelector({ value, onChange }: { value: ResolutionPreset; onChange: (value: ResolutionPreset) => void }) {
+  const option = getResolutionOption(value);
+  return <section className="project-resolution-bar"><div><b>项目统一分辨率</b><small>后续所有人物、场景与视频分镜沿用同一横竖屏比例</small></div><label className="field"><span>画布比例与尺寸</span><select className="select-button" value={value} onChange={(event) => onChange(event.target.value as ResolutionPreset)}>{RESOLUTION_OPTIONS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label><span className="resolution-summary">当前：{option.ratio} · {option.width}×{option.height}</span></section>;
 }
 
 function SelectedShotVideoPanel({ shot, status, models, modelId, provider, onModel, onGenerate }: { shot: Shot; status?: JobState; models: ModelProfile[]; modelId: string; provider: string; onModel: (model: ModelProfile | undefined) => void; onGenerate: () => void }) {
@@ -269,6 +275,7 @@ export default function Home() {
   const [episodeCount, setEpisodeCount] = useState(1);
   const [wordsPerEpisode, setWordsPerEpisode] = useState(500);
   const [storyBible, setStoryBible] = useState("");
+  const [resolutionPreset, setResolutionPreset] = useState<ResolutionPreset>(DEFAULT_RESOLUTION_PRESET);
   useEffect(() => {
     if (topic.length > 500) setTopic(topic.slice(0, 500));
   }, [topic]);
@@ -424,7 +431,7 @@ export default function Home() {
     }
     setIsLoadingProject(true);
     setGenerationError("");
-    const payload = { writerId, directorId, topic, scriptLength, narrativePerspective, format: projectFormat, episodeCount, wordsPerEpisode, storyBible };
+    const payload = { writerId, directorId, topic, scriptLength, narrativePerspective, format: projectFormat, episodeCount, wordsPerEpisode, storyBible, resolutionPreset };
     try {
       const response = await fetch(project?.id ? `/api/projects/${project.id}` : "/api/projects/draft", {
         method: project?.id ? "PATCH" : "POST",
@@ -526,7 +533,7 @@ export default function Home() {
     setIsGenerating(true);
     setGenerationError("");
     try {
-      const response = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ projectId: project?.id, writerId, directorId, topic, scriptLength, narrativePerspective, format: projectFormat, episodeCount, wordsPerEpisode, storyBible, modelId: textModelId || undefined, writerStyle: writer.source === "distilled" ? writer : undefined, directorStyle: director }) });
+       const response = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ projectId: project?.id, writerId, directorId, topic, scriptLength, narrativePerspective, format: projectFormat, episodeCount, wordsPerEpisode, storyBible, resolutionPreset, modelId: textModelId || undefined, writerStyle: writer.source === "distilled" ? writer : undefined, directorStyle: director }) });
       const data: unknown = await response.json().catch(() => null);
       if (!response.ok) {
         const message = data && typeof data === "object" && "error" in data && typeof data.error === "string" ? data.error : `生成失败（HTTP ${response.status}）`;
@@ -538,7 +545,8 @@ export default function Home() {
       const result = data as { project: GeneratedProject; trace?: TraceEntry[] };
       workspaceProjectIdRef.current = result.project.id || null;
       setProject(result.project);
-      setTopic(result.project.topic || topic);
+       setTopic(result.project.topic || topic);
+       setResolutionPreset(result.project.resolutionPreset || DEFAULT_RESOLUTION_PRESET);
       setActiveEpisodeNumber(1);
       void loadUsage(result.project.id!);
       setTrace(Array.isArray(result.trace) ? result.trace : []);
@@ -593,7 +601,8 @@ export default function Home() {
         setEpisodeCount(data.project.episodeCount || 1);
         setWordsPerEpisode(data.project.wordsPerEpisode || 500);
         setScriptLength(data.project.scriptLength || "short");
-        setNarrativePerspective(data.project.narrativePerspective || "third-person");
+         setNarrativePerspective(data.project.narrativePerspective || "third-person");
+         setResolutionPreset(data.project.resolutionPreset || DEFAULT_RESOLUTION_PRESET);
         setStoryBible(data.project.storyBible || "");
         void loadUsage(id);
         setActiveStep(data.project.script ? "script" : data.project.characters?.length ? "characters" : "brief");
@@ -1011,6 +1020,7 @@ export default function Home() {
     setEpisodeCount(1);
     setWordsPerEpisode(500);
     setStoryBible("");
+    setResolutionPreset(DEFAULT_RESOLUTION_PRESET);
     setWriterId("luxun");
     setDirectorId("wong-kar-wai");
     setActiveStep("brief");
@@ -1021,6 +1031,22 @@ export default function Home() {
     setAssetToolsOpen(false);
     setActiveStep(project?.script ? "script" : "brief");
     window.requestAnimationFrame(() => projectListRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
+  }
+
+  async function updateProjectResolution(value: ResolutionPreset) {
+    if (!project?.id || value === resolutionPreset) return;
+    const previous = resolutionPreset;
+    setResolutionPreset(value);
+    setActionError("");
+    try {
+      const response = await fetch(`/api/projects/${project.id}/resolution`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ resolutionPreset: value }) });
+      const data = await response.json().catch(() => null) as { project?: GeneratedProject; error?: string } | null;
+      if (!response.ok || !data?.project) throw new Error(data?.error || "项目分辨率保存失败");
+      setProject(data.project);
+    } catch (error) {
+      setResolutionPreset(previous);
+      setActionError(error instanceof Error ? error.message : "项目分辨率保存失败");
+    }
   }
 
   async function distillSample(file?: File) {
@@ -1422,6 +1448,7 @@ export default function Home() {
         <StyleLibraryManager active={activeStep === "brief" || activeStep === "style"} writers={writerOptions} directors={directorOptions} onEditWriter={openWriterStyleEditor} onDeleteWriter={(style) => void deleteWriterStyle(style)} onEditDirector={openDirectorStyleEditor} onDeleteDirector={(style) => void deleteDirectorStyle(style)} onCreateDirector={() => void createDirectorStyle()} />
         {(activeStep === "brief" || activeStep === "style") && styleMessage && <p className="style-library-message" role="status">{styleMessage}</p>}
         {activeStep === "script" && project && !episodeIsPlanned && !activeEpisodeScript && <div className="script-generation-action"><div><b>当前集还没有剧本</b><small>生成后会同步拆出场景、分镜和本集人物列表。</small></div><button className="primary-button" onClick={() => void generate()} disabled={isGenerating}><WandSparkles size={15} /> {isGenerating ? "生成中…" : `生成第 ${activeEpisodeNumber} 集剧本`}</button></div>}
+        {activeStep === "shots" && project && <ProjectResolutionSelector value={resolutionPreset} onChange={(value) => void updateProjectResolution(value)} />}
         {activeStep === "shots" && project && selectedShotId && <ShotAssociationEditor shot={shotDraft} characters={characters} assets={visibleAssets} onChange={(patch) => void updateShotAssociation(patch)} />}
 
         {activeStep === "characters" && project && <div className="character-tabs"><button className="character-tab current" onClick={() => void addCharacter()}><Plus size={14} /> 添加人物</button><span className="character-tab-label">人物资产包</span></div>}

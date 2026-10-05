@@ -24,8 +24,9 @@ export type ShotStatus = "draft" | "queued" | "processing" | "complete" | "faile
 export type ScriptLength = "micro" | "short" | "medium" | "long" | "feature" | "series";
 export type NarrativePerspective = "third-person" | "first-person" | "observational" | "multi-perspective" | "epistolary" | "unreliable-narrator";
 export type ProjectFormat = "single" | "series";
+export type ResolutionPreset = "landscape-16-9" | "portrait-9-16" | "square-1-1" | "landscape-4-3" | "portrait-3-4";
 export type ProjectSpec = { format: ProjectFormat; episodeCount: number; wordsPerEpisode: number; totalTargetWords: number };
-export type GenerationSpec = ProjectSpec & { storyBible?: string };
+export type GenerationSpec = ProjectSpec & { storyBible?: string; resolutionPreset?: ResolutionPreset };
 export type Character = {
   id: string;
   name: string;
@@ -53,5 +54,5 @@ export type EpisodeGenerationContext = {
   previousEpisode?: { number: number; summary: string; ending: string; sceneTitles: string[]; continuity?: EpisodeContinuity };
   characterState: Character[];
 };
-export type Shot = { id: string; scene: number; episodeNumber?: number; title?: string; duration: string; size: string; camera: string; movement: string; imagePrompt: string; videoPrompt: string; negativePrompt: string; action?: string; dialogue?: string; sound?: string; characterContext?: string; characterIds?: string[]; referenceAssetIds?: string[]; referenceAssetUrls?: string[]; model?: string; status?: ShotStatus };
-export type GeneratedProject = { id?: string; title: string; topic?: string; scriptLength?: ScriptLength; narrativePerspective?: NarrativePerspective; projectFormat?: ProjectFormat; episodeCount?: number; wordsPerEpisode?: number; totalTargetWords?: number; storyBible?: string; episodes?: EpisodeSummary[]; writerStyleId?: string; directorStyleId?: string; finalVideoUrl?: string; logline: string; script: string; continuity?: EpisodeContinuity; characters?: Character[]; scenes: { id?: string; number: number; episodeNumber?: number; title: string; content: string; mood: string }[]; shots: Shot[]; engine?: "local" | "penshot" | "llm" };
+export type Shot = { id: string; scene: number; episodeNumber?: number; title?: string; duration: string; size: string; camera: string; movement: string; imagePrompt: string; videoPrompt: string; negativePrompt: string; action?: string; dialogue?: string; sound?: string; characterContext?: string; characterIds?: string[]; referenceAssetIds?: string[]; referenceAssetUrls?: string[]; model?: string; resolutionPreset?: ResolutionPreset; status?: ShotStatus };
+export type GeneratedProject = { id?: string; title: string; topic?: string; scriptLength?: ScriptLength; narrativePerspective?: NarrativePerspective; projectFormat?: ProjectFormat; episodeCount?: number; wordsPerEpisode?: number; totalTargetWords?: number; storyBible?: string; resolutionPreset?: ResolutionPreset; episodes?: EpisodeSummary[]; writerStyleId?: string; directorStyleId?: string; finalVideoUrl?: string; logline: string; script: string; continuity?: EpisodeContinuity; characters?: Character[]; scenes: { id?: string; number: number; episodeNumber?: number; title: string; content: string; mood: string }[]; shots: Shot[]; engine?: "local" | "penshot" | "llm" };

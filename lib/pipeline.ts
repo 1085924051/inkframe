@@ -1,5 +1,6 @@
 import { directorStyles, writerStyles } from "./styles";
 import { buildCharacterReferencePrompt, CHARACTER_REFERENCE_NEGATIVE } from "./character-prompts";
+import { getResolutionOption, resolutionPrompt } from "./resolution";
 import type { Character, DirectorStyle, EpisodeContinuity, EpisodeGenerationContext, GeneratedProject, GenerationSpec, NarrativePerspective, ScriptLength, Shot, WriterStyle } from "./types";
 
 export type PipelineStage = "distill" | "script" | "parse" | "shots";
@@ -122,6 +123,13 @@ export function runPipeline(input: PipelineInput, hooks: PipelineHooks = {}): { 
   }
   stage("parse", `剧本解析为 ${ctx.scenes.length} 个场景`);
   shotsNode(ctx);
+  const canvas = resolutionPrompt(ctx.spec.resolutionPreset);
+  const preset = getResolutionOption(ctx.spec.resolutionPreset).id;
+  for (const shot of ctx.shots) {
+    shot.imagePrompt = `${canvas}；${shot.imagePrompt}`;
+    shot.videoPrompt = `${canvas}；${shot.videoPrompt}`;
+    shot.resolutionPreset = preset;
+  }
   stage("shots", `分镜生成 ${ctx.shots.length} 个镜头提示词`);
 
   const project: GeneratedProject = {
@@ -134,6 +142,7 @@ export function runPipeline(input: PipelineInput, hooks: PipelineHooks = {}): { 
     wordsPerEpisode: ctx.spec.wordsPerEpisode,
     totalTargetWords: ctx.spec.totalTargetWords,
     storyBible: ctx.spec.storyBible,
+    resolutionPreset: preset,
     logline: ctx.logline,
     script: ctx.script,
     continuity: {

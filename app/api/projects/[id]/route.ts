@@ -3,6 +3,7 @@ import { getProject, updateProjectBrief } from "@/lib/store";
 import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/rate-limit";
 import type { NarrativePerspective, ScriptLength } from "@/lib/types";
+import { getResolutionOption } from "@/lib/resolution";
 
 export async function GET(_request: Request, context: { params: { id: string } }) {
   const session = await getSession();
@@ -30,6 +31,7 @@ export async function PATCH(request: Request, context: { params: { id: string } 
     storyBible: typeof body.storyBible === "string" ? body.storyBible.slice(0, 20000) : undefined,
     scriptLength: lengths.includes(body.scriptLength as ScriptLength) ? body.scriptLength as ScriptLength : "short",
     narrativePerspective: perspectives.includes(body.narrativePerspective as NarrativePerspective) ? body.narrativePerspective as NarrativePerspective : "third-person",
+    resolutionPreset: getResolutionOption(typeof body.resolutionPreset === "string" ? body.resolutionPreset : undefined).id,
   });
   return result ? NextResponse.json({ project: result }) : NextResponse.json({ error: "项目不存在或无权修改" }, { status: 404 });
 }

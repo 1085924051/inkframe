@@ -15,7 +15,7 @@ async function providerFor(name: string): Promise<VideoProvider> {
 }
 
 async function loadShot(id: string): Promise<Shot | null> {
-  const row = await prisma.shot.findUnique({ where: { id }, include: { scene: true } });
+  const row = await prisma.shot.findUnique({ where: { id }, include: { scene: { include: { project: { select: { resolutionPreset: true } } } } } });
   if (!row) return null;
   const referenceAssetIds = row.referenceAssetIdsJson ? JSON.parse(row.referenceAssetIdsJson) as string[] : [];
   const referenceAssets = referenceAssetIds.length ? await prisma.asset.findMany({ where: { id: { in: referenceAssetIds }, projectId: row.scene.projectId, url: { not: null }, kind: { in: ["image", "reference"] } }, select: { id: true, url: true } }) : [];
@@ -30,6 +30,7 @@ async function loadShot(id: string): Promise<Shot | null> {
     imagePrompt: row.imagePrompt,
     videoPrompt: row.videoPrompt,
     negativePrompt: row.negativePrompt,
+    resolutionPreset: row.scene.project.resolutionPreset as import("./types").ResolutionPreset,
     referenceAssetIds,
     referenceAssetUrls: orderedReferenceUrls,
   };

@@ -1,7 +1,8 @@
 import { prisma } from "./prisma";
 import { directorStyles, writerStyles } from "./styles";
 import { groundCharactersToSource } from "./characters";
-import type { EpisodeContinuity, GeneratedProject, NarrativePerspective, ScriptLength, Shot, ShotStatus, WriterStyle } from "./types";
+import type { EpisodeContinuity, GeneratedProject, NarrativePerspective, ResolutionPreset, ScriptLength, Shot, ShotStatus, WriterStyle } from "./types";
+import { DEFAULT_RESOLUTION_PRESET, getResolutionOption } from "./resolution";
 
 export type ProjectScope = { userId: string; isAdmin: boolean };
 
@@ -45,7 +46,7 @@ async function ensureDirectorStyle(id: string) {
 
 export async function saveProject(
   project: GeneratedProject,
-  meta: { writerId: string; directorId: string; userId: string; format?: "single" | "series"; episodeCount?: number; wordsPerEpisode?: number; storyBible?: string; scriptLength?: ScriptLength; narrativePerspective?: NarrativePerspective }
+  meta: { writerId: string; directorId: string; userId: string; format?: "single" | "series"; episodeCount?: number; wordsPerEpisode?: number; storyBible?: string; scriptLength?: ScriptLength; narrativePerspective?: NarrativePerspective; resolutionPreset?: ResolutionPreset }
 ): Promise<GeneratedProject> {
   const [writerStyle, directorStyle] = await Promise.all([
     ensureWriterStyle(meta.writerId || "luxun"),
@@ -84,6 +85,7 @@ export async function saveProject(
       targetWords: Math.max(100, meta.wordsPerEpisode ?? project.wordsPerEpisode ?? 500),
       scriptLength: meta.scriptLength ?? project.scriptLength ?? "short",
       narrativePerspective: meta.narrativePerspective ?? project.narrativePerspective ?? "third-person",
+      resolutionPreset: getResolutionOption(meta.resolutionPreset ?? project.resolutionPreset ?? DEFAULT_RESOLUTION_PRESET).id,
       storyBibleJson: meta.storyBible ?? project.storyBible ?? null,
       script: {
         create: { content: project.script, logline: project.logline, version: 1 },
@@ -142,6 +144,7 @@ export async function saveProject(
     totalTargetWords: (meta.wordsPerEpisode ?? project.wordsPerEpisode ?? 500) * episodeCount,
     scriptLength: meta.scriptLength ?? project.scriptLength ?? "short",
     narrativePerspective: meta.narrativePerspective ?? project.narrativePerspective ?? "third-person",
+    resolutionPreset: getResolutionOption(meta.resolutionPreset ?? project.resolutionPreset ?? DEFAULT_RESOLUTION_PRESET).id,
     storyBible: meta.storyBible ?? project.storyBible,
     episodes: storedEpisodes.map((episode) => ({ id: episode.id, number: episode.number, title: episode.title, status: episode.status, outline: episode.outline || undefined, logline: episode.logline || undefined, script: episode.script || undefined, continuity: episode.continuityJson ? JSON.parse(episode.continuityJson) as EpisodeContinuity : undefined, characterIds: episode.characterIdsJson ? JSON.parse(episode.characterIdsJson) as string[] : undefined, sceneCount: episode._count.scenes, shotCount: episode.scenes.reduce((sum, scene) => sum + scene._count.shots, 0) })),
     characters: sourceGroundedCharacters.map((character) => ({ ...character, id: characterIdMap.get(character.id) ?? character.id })),
@@ -152,7 +155,7 @@ export async function saveProject(
 export async function updateProjectContent(
   projectId: string,
   project: GeneratedProject,
-  meta: { userId: string; isAdmin?: boolean; writerId?: string; directorId?: string; format?: "single" | "series"; episodeCount?: number; wordsPerEpisode?: number; storyBible?: string; scriptLength?: ScriptLength; narrativePerspective?: NarrativePerspective },
+  meta: { userId: string; isAdmin?: boolean; writerId?: string; directorId?: string; format?: "single" | "series"; episodeCount?: number; wordsPerEpisode?: number; storyBible?: string; scriptLength?: ScriptLength; narrativePerspective?: NarrativePerspective; resolutionPreset?: ResolutionPreset },
 ): Promise<GeneratedProject | null> {
   const owner = await prisma.project.findUnique({ where: { id: projectId }, select: { userId: true } });
   if (!owner || (!meta.isAdmin && owner.userId !== meta.userId)) return null;
@@ -161,7 +164,7 @@ export async function updateProjectContent(
     meta.directorId ? ensureDirectorStyle(meta.directorId) : null,
   ]);
   await prisma.$transaction(async (tx) => {
-    await tx.project.update({ where: { id: projectId }, data: { ...(writerStyle ? { writerStyleId: writerStyle.id } : {}), ...(directorStyle ? { directorStyleId: directorStyle.id } : {}), topic: project.topic || project.title, format: meta.format ?? project.projectFormat ?? "single", episodeCount: Math.max(1, meta.episodeCount ?? project.episodeCount ?? 1), targetWords: Math.max(100, meta.wordsPerEpisode ?? project.wordsPerEpisode ?? 500), scriptLength: meta.scriptLength ?? project.scriptLength ?? "short", narrativePerspective: meta.narrativePerspective ?? project.narrativePerspective ?? "third-person", storyBibleJson: meta.storyBible ?? project.storyBible ?? null } });
+    await tx.project.update({ where: { id: projectId }, data: { ...(writerStyle ? { writerStyleId: writerStyle.id } : {}), ...(directorStyle ? { directorStyleId: directorStyle.id } : {}), topic: project.topic || project.title, format: meta.format ?? project.projectFormat ?? "single", episodeCount: Math.max(1, meta.episodeCount ?? project.episodeCount ?? 1), targetWords: Math.max(100, meta.wordsPerEpisode ?? project.wordsPerEpisode ?? 500), scriptLength: meta.scriptLength ?? project.scriptLength ?? "short", narrativePerspective: meta.narrativePerspective ?? project.narrativePerspective ?? "third-person", resolutionPreset: getResolutionOption(meta.resolutionPreset ?? project.resolutionPreset ?? DEFAULT_RESOLUTION_PRESET).id, storyBibleJson: meta.storyBible ?? project.storyBible ?? null } });
     await tx.script.upsert({ where: { projectId }, create: { projectId, content: project.script, logline: project.logline, version: 1 }, update: { content: project.script, logline: project.logline, version: { increment: 1 } } });
     const existingCharacters = await tx.character.findMany({ where: { projectId }, select: { id: true, name: true } });
     const sourceText = [project.script, ...project.scenes.flatMap((scene) => [scene.title, scene.content, scene.mood])].filter((value): value is string => typeof value === "string").join("\n");
@@ -216,7 +219,7 @@ export class ShotRetakeError extends Error {
 
 export async function updateProjectBrief(
   projectId: string,
-  meta: { userId: string; isAdmin?: boolean; writerId: string; directorId: string; topic: string; format: "single" | "series"; episodeCount: number; wordsPerEpisode: number; storyBible?: string; scriptLength: ScriptLength; narrativePerspective: NarrativePerspective },
+  meta: { userId: string; isAdmin?: boolean; writerId: string; directorId: string; topic: string; format: "single" | "series"; episodeCount: number; wordsPerEpisode: number; storyBible?: string; scriptLength: ScriptLength; narrativePerspective: NarrativePerspective; resolutionPreset?: ResolutionPreset },
 ): Promise<GeneratedProject | null> {
   const owner = await prisma.project.findUnique({ where: { id: projectId }, select: { userId: true } });
   if (!owner || (!meta.isAdmin && owner.userId !== meta.userId)) return null;
@@ -233,10 +236,18 @@ export async function updateProjectBrief(
       targetWords: Math.max(100, meta.wordsPerEpisode),
       scriptLength: meta.scriptLength,
       narrativePerspective: meta.narrativePerspective,
+      ...(meta.resolutionPreset ? { resolutionPreset: getResolutionOption(meta.resolutionPreset).id } : {}),
       storyBibleJson: meta.storyBible || null,
     },
   });
   return getProject(projectId, { userId: meta.userId, isAdmin: Boolean(meta.isAdmin) });
+}
+
+export async function updateProjectResolution(projectId: string, resolutionPreset: ResolutionPreset, scope: ProjectScope): Promise<GeneratedProject | null> {
+  const owner = await prisma.project.findUnique({ where: { id: projectId }, select: { userId: true } });
+  if (!owner || (!scope.isAdmin && owner.userId !== scope.userId)) return null;
+  await prisma.project.update({ where: { id: projectId }, data: { resolutionPreset: getResolutionOption(resolutionPreset).id } });
+  return getProject(projectId, scope);
 }
 
 export async function replaceShot(
@@ -472,6 +483,7 @@ export async function getProject(id: string, scope: ProjectScope): Promise<Gener
     totalTargetWords: row.targetWords * row.episodeCount,
     scriptLength: row.scriptLength as ScriptLength,
     narrativePerspective: row.narrativePerspective as NarrativePerspective,
+    resolutionPreset: getResolutionOption(row.resolutionPreset).id,
     storyBible: row.storyBibleJson || undefined,
     episodes: row.episodes.map((episode) => ({ id: episode.id, number: episode.number, title: episode.title, status: episode.status, outline: episode.outline || undefined, logline: episode.logline || undefined, script: episode.script || undefined, continuity: episode.continuityJson ? JSON.parse(episode.continuityJson) as EpisodeContinuity : undefined, characterIds: episode.characterIdsJson ? JSON.parse(episode.characterIdsJson) as string[] : undefined, sceneCount: episode._count.scenes, shotCount: episode.scenes.reduce((sum, scene) => sum + scene._count.shots, 0) })),
     finalVideoUrl: row.finalVideoUrl || undefined,

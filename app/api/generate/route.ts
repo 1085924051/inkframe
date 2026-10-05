@@ -9,6 +9,7 @@ import { recordAudit } from "@/lib/audit";
 import { getClientIp, isSameOrigin, rateLimit } from "@/lib/rate-limit";
 import type { GeneratedProject, GenerationSpec, NarrativePerspective, ScriptLength, WriterStyle } from "@/lib/types";
 import { recordUsage } from "@/lib/usage";
+import { getResolutionOption } from "../../../lib/resolution";
 import type { ModelUsage } from "@/lib/ai/client";
 
 export async function POST(request: Request) {
@@ -30,7 +31,8 @@ export async function POST(request: Request) {
   const format = body.format === "series" ? "series" : "single";
   const episodeCount = Math.min(100, Math.max(1, Number(body.episodeCount) || 1));
   const wordsPerEpisode = Math.min(100000, Math.max(100, Number(body.wordsPerEpisode) || 500));
-  const spec: GenerationSpec = { format, episodeCount, wordsPerEpisode, totalTargetWords: episodeCount * wordsPerEpisode, storyBible: typeof body.storyBible === "string" ? body.storyBible.slice(0, 20000) : undefined };
+  const resolutionPreset = getResolutionOption(typeof body.resolutionPreset === "string" ? body.resolutionPreset : undefined).id;
+  const spec: GenerationSpec = { format, episodeCount, wordsPerEpisode, totalTargetWords: episodeCount * wordsPerEpisode, storyBible: typeof body.storyBible === "string" ? body.storyBible.slice(0, 20000) : undefined, resolutionPreset };
 
   let draft: GeneratedProject;
   let modelUsage: ModelUsage | undefined;
@@ -80,8 +82,8 @@ export async function POST(request: Request) {
     await saveDirectorStyle(selectedDirector, session.userId);
   }
   const stored = body.projectId
-    ? await updateProjectContent(String(body.projectId), project, { userId: session.userId, isAdmin: session.role === "ADMIN", writerId, directorId, format, episodeCount, wordsPerEpisode, scriptLength, narrativePerspective, storyBible: typeof body.storyBible === "string" ? body.storyBible : undefined })
-    : await saveProject(project, { writerId, directorId, userId: session.userId, format, episodeCount, wordsPerEpisode, scriptLength, narrativePerspective, storyBible: typeof body.storyBible === "string" ? body.storyBible : undefined });
+    ? await updateProjectContent(String(body.projectId), project, { userId: session.userId, isAdmin: session.role === "ADMIN", writerId, directorId, format, episodeCount, wordsPerEpisode, scriptLength, narrativePerspective, storyBible: typeof body.storyBible === "string" ? body.storyBible : undefined, resolutionPreset })
+    : await saveProject(project, { writerId, directorId, userId: session.userId, format, episodeCount, wordsPerEpisode, scriptLength, narrativePerspective, storyBible: typeof body.storyBible === "string" ? body.storyBible : undefined, resolutionPreset });
   if (!stored) return NextResponse.json({ error: "项目不存在或无权修改" }, { status: 404 });
   await recordUsage({ projectId: stored.id, userId: session.userId, kind: "text", provider: modelUsage ? "llm" : "local", model: modelUsage?.model || project.engine, inputTokens: modelUsage?.inputTokens, outputTokens: modelUsage?.outputTokens, inputText: modelUsage ? undefined : topic, outputText: modelUsage ? undefined : project.script, metadata: { trace, estimatedTokens: modelUsage?.estimated ?? true } });
   await recordAudit(session, "project.create", "project", stored.id, stored.title);

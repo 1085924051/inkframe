@@ -1,6 +1,7 @@
 import type { Character, DirectorStyle, EpisodeContinuity, EpisodeGenerationContext, GeneratedProject, GenerationSpec, NarrativePerspective, ScriptLength, Shot, StyleAxis, WriterStyle } from "../types";
 import { chatCompletion, chatCompletionDetailed, extractJson, isLLMConfigured, type ModelUsage } from "./client";
 import { buildCharacterReferencePrompt, CHARACTER_REFERENCE_NEGATIVE } from "../character-prompts";
+import { getResolutionOption, resolutionPrompt } from "../resolution";
 
 // ============================================================
 // 风格蒸馏 Provider —— 把一段样本文本压缩为 9 轴作家风格卡
@@ -163,6 +164,13 @@ export class LLMProjectGenerator implements ProjectGenerator {
       shot.imagePrompt = `${shot.imagePrompt || input.director.descriptor}.${dynamics}${bible}`;
       shot.videoPrompt = `${shot.videoPrompt || input.director.descriptor}.${dynamics} Preserve temporal order and lip-sync the spoken dialogue.${bible}`;
     }
+    const preset = getResolutionOption(input.spec.resolutionPreset).id;
+    const canvas = resolutionPrompt(preset);
+    for (const shot of shots) {
+      shot.imagePrompt = `${canvas}；${shot.imagePrompt}`;
+      shot.videoPrompt = `${canvas}；${shot.videoPrompt}`;
+      shot.resolutionPreset = preset;
+    }
     const fallbackShot = shots[0];
     for (const scene of scenes) {
       if (shots.some((shot) => shot.scene === scene.number)) continue;
@@ -175,11 +183,12 @@ export class LLMProjectGenerator implements ProjectGenerator {
         size: fallbackShot?.size || "中景",
         camera: fallbackShot?.camera || "平视",
         movement: fallbackShot?.movement || "缓慢推进",
-        imagePrompt: `${input.director.descriptor}, ${scene.content}${characterBible}`,
-        videoPrompt: `${input.director.descriptor}; establish scene ${scene.title}, preserve continuity${characterBible}`,
+        imagePrompt: `${canvas}；${input.director.descriptor}, ${scene.content}${characterBible}`,
+        videoPrompt: `${canvas}；${input.director.descriptor}; establish scene ${scene.title}, preserve continuity${characterBible}`,
         negativePrompt: fallbackShot?.negativePrompt || "text, subtitle, watermark",
         characterContext,
         characterIds: characters.slice(0, Math.min(2, characters.length)).map((character) => character.id),
+        resolutionPreset: preset,
       });
     }
     const continuity: EpisodeContinuity = {
@@ -198,6 +207,7 @@ export class LLMProjectGenerator implements ProjectGenerator {
       wordsPerEpisode: input.spec.wordsPerEpisode,
       totalTargetWords: input.spec.totalTargetWords,
       storyBible: input.spec.storyBible,
+      resolutionPreset: preset,
       logline: parsed.logline || "",
       script: parsed.script || "",
       continuity,

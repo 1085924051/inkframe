@@ -3,9 +3,14 @@ import { getModelConfigValue } from "./settings";
 import { shotDurationSeconds } from "./shot-retake";
 import { prisma } from "./prisma";
 import { decryptSecret } from "./security";
+import { getResolutionOption } from "./resolution";
 
 export type VideoJobStatus = "queued" | "processing" | "complete" | "failed";
 export type VideoJob = { id: string; shotId: string; provider: string; model?: string; externalId?: string; status: VideoJobStatus; progress: number; outputUrl?: string; error?: string; createdAt: string; updatedAt: string };
+
+function shotResolution(shot: Shot) {
+  return getResolutionOption(shot.resolutionPreset);
+}
 
 export interface VideoProvider {
   readonly name: string;
@@ -58,10 +63,11 @@ export class RunwayVideoProvider implements VideoProvider {
     assertVideoReferenceCapacity(this.name, shot.referenceAssetUrls);
     const { baseUrl, key } = await resolveProviderConfig("RUNWAY_API_URL", "RUNWAY_API_KEY", "https://api.runwayml.com");
     const model = shot.model || await getModelConfigValue("RUNWAY_MODEL");
+    const resolution = shotResolution(shot);
     const response = await fetch(`${baseUrl}/v1/image_to_video`, {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ ...(model ? { model } : {}), prompt_text: shot.videoPrompt, ...(shot.referenceAssetUrls?.[0] ? { prompt_image: shot.referenceAssetUrls[0] } : {}), duration: shotDurationSeconds(shot.duration), ratio: "1280:720" }),
+      body: JSON.stringify({ ...(model ? { model } : {}), prompt_text: shot.videoPrompt, ...(shot.referenceAssetUrls?.[0] ? { prompt_image: shot.referenceAssetUrls[0] } : {}), duration: shotDurationSeconds(shot.duration), ratio: resolution.apiRatio }),
       cache: "no-store",
     });
     if (!response.ok) throw new Error(`Runway 提交失败：HTTP ${response.status}`);
@@ -86,10 +92,11 @@ export class KlingVideoProvider implements VideoProvider {
     assertVideoReferenceCapacity(this.name, shot.referenceAssetUrls);
     const { baseUrl, key } = await resolveProviderConfig("KLING_API_URL", "KLING_API_KEY", "https://api.klingai.com");
     const model = shot.model || (await getModelConfigValue("KLING_MODEL")) || "kling-v1";
+    const resolution = shotResolution(shot);
     const response = await fetch(`${baseUrl}/v1/videos/image2video`, {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model_name: model, prompt: shot.videoPrompt, ...(shot.referenceAssetUrls?.[0] ? { image: shot.referenceAssetUrls[0] } : {}), duration: String(shotDurationSeconds(shot.duration)), mode: "std" }),
+      body: JSON.stringify({ model_name: model, prompt: shot.videoPrompt, ...(shot.referenceAssetUrls?.[0] ? { image: shot.referenceAssetUrls[0] } : {}), duration: String(shotDurationSeconds(shot.duration)), mode: "std", aspect_ratio: resolution.ratio }),
       cache: "no-store",
     });
     if (!response.ok) throw new Error(`可灵提交失败：HTTP ${response.status}`);
@@ -114,10 +121,11 @@ export class SeedanceVideoProvider implements VideoProvider {
     assertVideoReferenceCapacity(this.name, shot.referenceAssetUrls);
     const { baseUrl, key } = await resolveProviderConfig("SEEDANCE_API_URL", "SEEDANCE_API_KEY", "https://ark.cn-beijing.volces.com/api/v3");
     const model = shot.model || (await getModelConfigValue("SEEDANCE_MODEL")) || "doubao-seedance-1-0-pro";
+    const resolution = shotResolution(shot);
     const response = await fetch(`${baseUrl}/contents/generations/tasks`, {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model, content: [{ type: "text", text: shot.videoPrompt }, ...(shot.referenceAssetUrls || []).map((url) => ({ type: "image_url", role: "reference_image", image_url: { url } }))] }),
+      body: JSON.stringify({ model, content: [{ type: "text", text: `${shot.videoPrompt}；${resolution.ratio} 画面比例，${resolution.width}×${resolution.height} 统一画布` }, ...(shot.referenceAssetUrls || []).map((url) => ({ type: "image_url", role: "reference_image", image_url: { url } }))], resolution: resolution.providerResolution, ratio: resolution.ratio }),
       cache: "no-store",
     });
     if (!response.ok) throw new Error(`Seedance 提交失败：HTTP ${response.status}`);
@@ -181,13 +189,14 @@ class ConfiguredChannelVideoProvider implements VideoProvider {
   async submit(shot: Shot) {
     assertVideoReferenceCapacity(this.config.provider, shot.referenceAssetUrls);
     const refs = shot.referenceAssetUrls || [];
+    const resolution = shotResolution(shot);
     if (isYuYuChannel(this.config)) {
       const usableRefs = await yuyuReferenceUrls(shot);
       const data = await this.request("/contents/generations/tasks", { method: "POST", body: JSON.stringify({
         model: this.config.model,
-        content: [{ type: "text", text: shot.videoPrompt }, ...usableRefs.map((url) => ({ type: "image_url", role: "reference_image", image_url: { url } }))],
-        resolution: "720p",
-        ratio: "16:9",
+        content: [{ type: "text", text: `${shot.videoPrompt}；${resolution.ratio} 画面比例，${resolution.width}×${resolution.height} 统一画布` }, ...usableRefs.map((url) => ({ type: "image_url", role: "reference_image", image_url: { url } }))],
+        resolution: resolution.providerResolution,
+        ratio: resolution.ratio,
         duration: seedanceDuration(this.config.model, shot.duration),
         watermark: false,
       }) });
@@ -195,10 +204,10 @@ class ConfiguredChannelVideoProvider implements VideoProvider {
       if (!id) throw new Error("YuYu 未返回任务 ID");
       return { externalId: String(id) };
     }
-    if (this.config.provider === "runway") { const data = await this.request("/v1/image_to_video", { method: "POST", body: JSON.stringify({ model: this.config.model, prompt_text: shot.videoPrompt, ...(refs[0] ? { prompt_image: refs[0] } : {}), duration: shotDurationSeconds(shot.duration), ratio: "1280:720" }) }); return { externalId: String(data.id) }; }
-    if (this.config.provider === "kling") { const data = await this.request("/v1/videos/image2video", { method: "POST", body: JSON.stringify({ model_name: this.config.model, prompt: shot.videoPrompt, ...(refs[0] ? { image: refs[0] } : {}), duration: String(shotDurationSeconds(shot.duration)), mode: "std" }) }); return { externalId: String((data.data as Record<string, unknown> | undefined)?.task_id || data.task_id) }; }
-    if (this.config.provider === "seedance") { const data = await this.request("/contents/generations/tasks", { method: "POST", body: JSON.stringify({ model: this.config.model, content: [{ type: "text", text: shot.videoPrompt }, ...refs.map((url) => ({ type: "image_url", role: "reference_image", image_url: { url } }))], resolution: "720p", ratio: "16:9", duration: seedanceDuration(this.config.model, shot.duration), watermark: false }) }); return { externalId: String(data.id || (data.data as Record<string, unknown> | undefined)?.id) }; }
-    const data = await this.request("/videos/generations", { method: "POST", body: JSON.stringify({ model: this.config.model, prompt: shot.videoPrompt, negative_prompt: shot.negativePrompt, duration: shotDurationSeconds(shot.duration), aspect_ratio: "16:9", reference_images: refs }) });
+    if (this.config.provider === "runway") { const data = await this.request("/v1/image_to_video", { method: "POST", body: JSON.stringify({ model: this.config.model, prompt_text: shot.videoPrompt, ...(refs[0] ? { prompt_image: refs[0] } : {}), duration: shotDurationSeconds(shot.duration), ratio: resolution.apiRatio }) }); return { externalId: String(data.id) }; }
+    if (this.config.provider === "kling") { const data = await this.request("/v1/videos/image2video", { method: "POST", body: JSON.stringify({ model_name: this.config.model, prompt: shot.videoPrompt, ...(refs[0] ? { image: refs[0] } : {}), duration: String(shotDurationSeconds(shot.duration)), mode: "std", aspect_ratio: resolution.ratio }) }); return { externalId: String((data.data as Record<string, unknown> | undefined)?.task_id || data.task_id) }; }
+    if (this.config.provider === "seedance") { const data = await this.request("/contents/generations/tasks", { method: "POST", body: JSON.stringify({ model: this.config.model, content: [{ type: "text", text: `${shot.videoPrompt}；${resolution.ratio} 画面比例，${resolution.width}×${resolution.height} 统一画布` }, ...refs.map((url) => ({ type: "image_url", role: "reference_image", image_url: { url } }))], resolution: resolution.providerResolution, ratio: resolution.ratio, duration: seedanceDuration(this.config.model, shot.duration), watermark: false }) }); return { externalId: String(data.id || (data.data as Record<string, unknown> | undefined)?.id) }; }
+    const data = await this.request("/videos/generations", { method: "POST", body: JSON.stringify({ model: this.config.model, prompt: shot.videoPrompt, negative_prompt: shot.negativePrompt, duration: shotDurationSeconds(shot.duration), aspect_ratio: resolution.ratio, reference_images: refs }) });
     const id = data.id || (data.data as Record<string, unknown> | undefined)?.id || (data.data as Record<string, unknown> | undefined)?.task_id;
     if (!id) throw new Error("视频渠道未返回任务 ID");
     return { externalId: String(id) };

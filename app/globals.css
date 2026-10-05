@@ -708,6 +708,17 @@ section:has(.shot-strip) .section-index::after{content:"04 / 分镜提示词";fo
   .app-shell .empty-state{padding:24px 14px}
 }
 
+.app-shell .project-resolution-bar{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,360px) auto;align-items:end;gap:16px;margin:0 var(--layout-gutter) 14px;padding:12px 16px;border:1px solid rgba(144,209,187,.18);border-radius:10px;background:linear-gradient(135deg,rgba(20,42,39,.86),rgba(16,29,29,.76));box-shadow:0 10px 26px rgba(0,0,0,.12),inset 0 1px 0 rgba(255,255,255,.04)}
+.app-shell .project-resolution-bar>div{display:grid;gap:4px;min-width:0}
+.app-shell .project-resolution-bar b{color:#e9f8ef;font-size:12px}
+.app-shell .project-resolution-bar>div small{color:#78978b;font-size:10px;line-height:1.5}
+.app-shell .project-resolution-bar .field{gap:5px}
+.app-shell .project-resolution-bar .field>span{color:#8faea0;font-size:10px}
+.app-shell .project-resolution-bar .select-button{width:100%;min-width:0;min-height:38px;color:#e7f2ec;background:rgba(6,18,18,.62);border-color:rgba(144,209,187,.22)}
+.app-shell .resolution-summary{align-self:center;color:#8bd2b4;font:10px 'DM Mono';white-space:nowrap}
+@media(max-width:900px){.app-shell .project-resolution-bar{grid-template-columns:minmax(0,1fr) minmax(220px,300px)}}
+@media(max-width:620px){.app-shell .project-resolution-bar{grid-template-columns:1fr;margin-left:0;margin-right:0;gap:10px}.app-shell .resolution-summary{align-self:auto}}
+
 /* Script page: keep character association in one compact, direct-manipulation area. */
 .app-shell .episode-character-add{display:none!important}
 .app-shell .episode-character-list{gap:10px;padding-top:12px;padding-bottom:12px;margin-bottom:14px}

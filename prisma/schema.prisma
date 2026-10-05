@@ -74,6 +74,7 @@ model Project {
   targetWords     Int           @default(500)
   scriptLength    String        @default("short")
   narrativePerspective String   @default("third-person")
+  resolutionPreset String       @default("landscape-16-9")
   storyBibleJson  String?
   episodes        Episode[]
   assets          Asset[]
