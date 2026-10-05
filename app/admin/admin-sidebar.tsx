@@ -16,7 +16,7 @@ const items = [
 ];
 
 function isActive(pathname: string, href: string) {
-  if (href === "/home" || href === "/") return pathname === href;
+  if (href === "/home" || href === "/" || href === "/admin" || href === "/admin/settings") return pathname === href;
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
