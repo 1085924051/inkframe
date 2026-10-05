@@ -16,6 +16,18 @@ type AssetState = { id: string; kind: string; status: string; name: string; url?
 type ImageJobState = { id: string; characterId?: string; sceneId?: string; assetType?: string; view?: string; prompt?: string; status: "queued" | "processing" | "complete" | "failed"; progress: number; outputUrl?: string; error?: string };
 type ModelProfile = { id: string; name: string; kind: string; provider: string; model: string; baseUrl: string };
 type StyleEditorState = { kind: "writer"; style: WriterStyle } | { kind: "director"; style: DirectorStyle };
+type CampaignBannerData = { id: string; title: string; subtitle: string; badge?: string | null; discountPercent: number; bonusPercent: number; ctaLabel: string; ctaHref: string };
+
+function CampaignBanner({ compact = false }: { compact?: boolean }) {
+  const [campaign, setCampaign] = useState<CampaignBannerData | null>(null);
+  useEffect(() => { fetch("/api/campaigns").then((response) => response.ok ? response.json() : null).then((data: { campaigns?: CampaignBannerData[] } | null) => setCampaign(data?.campaigns?.[0] || null)).catch(() => undefined); }, []);
+  if (!campaign) return null;
+  return <a className={`campaign-banner ${compact ? "compact" : ""}`} href={campaign.ctaHref || "/register"}><span className="campaign-banner-badge">{campaign.badge || "限时活动"}</span><span className="campaign-banner-copy"><b>{campaign.title}</b><small>{campaign.subtitle}</small></span><span className="campaign-banner-benefit">{campaign.discountPercent ? `省 ${campaign.discountPercent}%` : campaign.bonusPercent ? `赠 ${campaign.bonusPercent}%` : "现在开始"}</span><ArrowRight size={16} /></a>;
+}
+
+function PublicLanding() {
+  return <main className="marketing-shell"><header className="marketing-nav"><a className="marketing-brand" href="/"><span className="marketing-mark"><Sparkles size={17} /></span><span>INKFRAME</span><small>STUDIO</small></a><nav><a href="#workflow">创作流程</a><a href="#pricing">计费方式</a><a href="/login">登录</a><a className="marketing-nav-cta" href="/register">免费开始</a></nav></header><section className="marketing-hero"><div className="marketing-hero-copy"><div className="marketing-eyebrow"><span /> AI STORY PIPELINE</div><h1>把文字的气质<br /><em>拍成一部短剧</em></h1><p>从创作简报、作家风格和导演视觉出发，自动完成角色资产、连续剧本、分镜提示词和视频生成。</p><div className="marketing-actions"><a className="marketing-primary" href="/register">开始创作 <ArrowRight size={16} /></a><a className="marketing-secondary" href="/login">打开项目</a></div><CampaignBanner /></div><div className="marketing-visual"><div className="visual-glow" /><div className="visual-panel"><div className="visual-panel-top"><span>PROJECT / FIRST CUT</span><i>● LIVE</i></div><div className="visual-screen"><div className="visual-screen-label">FROM BRIEF TO FRAME</div><div className="visual-screen-title">一场尚未发生的<br /><strong>告别</strong></div><div className="visual-screen-meta"><span>03 场景</span><span>08 镜头</span><span>16:9 · 1080P</span></div></div><div className="visual-timeline"><span className="timeline-active" /><span /><span /><span /><span /></div><div className="visual-caption"><b>把故事交给一条连续的生产管线</b><small>角色、场景、对白和镜头始终保持关联</small></div></div></div></section><section id="workflow" className="marketing-workflow"><div className="marketing-section-heading"><span>WORKFLOW</span><h2>从灵感到成片，<em>每一步都有上下文</em></h2></div><div className="marketing-flow-grid"><div><span>01</span><b>创作简报</b><p>输入主题、篇幅、叙事视角和世界观约束。</p></div><div><span>02</span><b>资产与风格</b><p>固定人物、场景和导演视觉，持续复用。</p></div><div><span>03</span><b>剧本与分镜</b><p>让对白、动作和镜头运动准确对应。</p></div><div><span>04</span><b>视频生成</b><p>选择模型，异步生成可预览的镜头视频。</p></div></div></section><section id="pricing" className="marketing-pricing"><div><span className="marketing-section-label">透明计费</span><h2>按实际模型消耗，<br /><em>不藏在黑箱里</em></h2><p>每个模型都可以由管理员单独配置价格。视频按秒、图像按张、文本按 token 记录，项目和用量都能回看。</p></div><div className="pricing-highlights"><div><b>¥0.2–1.0</b><span>视频生成每秒参考区间</span></div><div><b>可配置</b><span>模型、渠道和活动价格</span></div><div><b>可追溯</b><span>每次生成写入用量记录</span></div></div></section><footer className="marketing-footer"><span>INKFRAME / FROM TEXT TO FRAME</span><a href="/register">进入工作台 <ArrowRight size={14} /></a></footer></main>;
+}
 
 function EpisodeBoard({ episodes, activeEpisodeNumber, onSelect }: { episodes: EpisodeSummary[]; activeEpisodeNumber: number; onSelect: (episode: EpisodeSummary) => void }) {
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -294,6 +306,7 @@ export default function Home() {
   const [generationError, setGenerationError] = useState("");
   const [isLoadingProject, setIsLoadingProject] = useState(false);
   const [user, setUser] = useState<{ id: string; email: string; name: string; role: string } | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [usage, setUsage] = useState<UsageState | null>(null);
   const [retakingShotId, setRetakingShotId] = useState<string | null>(null);
   const [actionError, setActionError] = useState("");
@@ -456,7 +469,7 @@ export default function Home() {
   }
 
   useEffect(() => {
-    fetch("/api/auth/me").then((r) => r.json()).then((d) => { if (d.user) { setUser(d.user); void loadProjects(); void loadStyles(); } else { window.location.href = "/login"; } }).catch(() => { window.location.href = "/login"; });
+    fetch("/api/auth/me").then((r) => r.json()).then((d) => { if (d.user) { setUser(d.user); void loadProjects(); void loadStyles(); } setAuthChecked(true); }).catch(() => setAuthChecked(true));
   }, []);
 
   useEffect(() => {
@@ -1381,6 +1394,9 @@ export default function Home() {
     window.location.href = "/login";
   }
 
+  if (!authChecked) return <main className="marketing-shell marketing-loading"><div className="marketing-loading-mark"><Sparkles size={18} /></div><span>正在进入 Inkframe Studio…</span></main>;
+  if (!user) return <PublicLanding />;
+
   const steps: { id: Step; label: string; icon: typeof FileText }[] = [
     { id: "brief", label: "创作简报", icon: FileText }, { id: "script", label: "剧本", icon: Clapperboard }, { id: "characters", label: "人物资产", icon: UserRound }, { id: "shots", label: "分镜提示词", icon: Film }
   ];
@@ -1439,6 +1455,7 @@ export default function Home() {
     <section className="main-area">
       <header className="topbar"><div><span className="eyebrow">WORKSPACE / 01</span><h1>短剧生成工作台</h1></div><div className="top-actions">{user && <span className="save-state"><Check size={14} /> {user.role === "ADMIN" ? "管理员" : "已登录"} · {user.name}</span>}{user?.role === "ADMIN" && <a className="admin-link" href="/admin"><Shield size={15} /> 后台管理</a>}<button className="avatar">{user?.name?.charAt(0) ?? "?"}</button><button className="logout-link" onClick={() => void logout()}>退出</button></div></header>
        <section className="hero-top"><div><div className="kicker"><span className="pulse" /> AI STORY PIPELINE</div><h2>把文字的气质<br /><i>拍成一部短剧</i></h2><p>从创作简报和风格出发，让每一个场景都拥有自己的叙事温度。</p></div><div className="hero-meta"><div className="meta-number">0{Math.max(1, workflowSteps.findIndex((item) => item.id === activeStep) + 1)}<span>/ 04</span></div><div className="meta-copy">当前阶段<br /><strong>{workflowSteps.find((item) => item.id === activeStep)?.label || "创作简报"}</strong></div></div></section>
+        <CampaignBanner compact />
         <WorkflowBar steps={workflowSteps} activeStep={activeStep} project={project} onSelect={(step) => { setActionError(""); setActiveStep(step); }} />
       <div className="content-wrap">
     <input id="sample-upload" type="file" accept=".txt,text/plain" hidden onChange={(event) => void distillSample(event.target.files?.[0])} />

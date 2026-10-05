@@ -26,8 +26,8 @@ export async function POST(request: Request, context: { params: { id: string; ep
     if (!updatedProject) return NextResponse.json({ error: "Project not found" }, { status: 404 });
     const updatedEpisode = updatedProject.episodes?.find((item) => item.id === saved.episodeId);
     try {
-      if (draft.usage) await recordUsage({ projectId: context.params.id, userId: session.userId, kind: "text", provider: "llm", model: draft.usage.model, inputTokens: draft.usage.inputTokens, outputTokens: draft.usage.outputTokens, metadata: { operation: "episode-generation", episodeNumber: saved.episodeNumber, estimatedTokens: draft.usage.estimated } });
-      else await recordUsage({ projectId: context.params.id, userId: session.userId, kind: "text", provider: "local", model: "local-episode-continuity", inputText: draft.context.episodeGoal, outputText: draft.project.script, metadata: { operation: "episode-generation", episodeNumber: saved.episodeNumber, estimatedTokens: true } });
+      if (draft.usage) await recordUsage({ projectId: context.params.id, userId: session.userId, kind: "text", provider: "llm", model: draft.usage.model, modelId: typeof body.modelId === "string" ? body.modelId : undefined, inputTokens: draft.usage.inputTokens, outputTokens: draft.usage.outputTokens, metadata: { operation: "episode-generation", episodeNumber: saved.episodeNumber, estimatedTokens: draft.usage.estimated } });
+      else await recordUsage({ projectId: context.params.id, userId: session.userId, kind: "text", provider: "local", model: "local-episode-continuity", modelId: typeof body.modelId === "string" ? body.modelId : undefined, inputText: draft.context.episodeGoal, outputText: draft.project.script, metadata: { operation: "episode-generation", episodeNumber: saved.episodeNumber, estimatedTokens: true } });
     } catch (usageError) {
       console.warn("[episode-generation] usage recording failed after episode save", usageError);
     }

@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
 import { getModelConfigValue } from "./settings";
+import { calculatePricing, findModelPricing, pricingToView } from "./pricing";
 
 export function estimateTokens(text: string) {
   return Math.max(1, Math.ceil(Array.from(text).length / 4));
@@ -14,11 +15,18 @@ export async function modelCostMicros(inputTokens: number, outputTokens: number)
   return { costMicros: micros, costCents: Math.round(micros / 10_000), ratesConfigured };
 }
 
-export async function recordUsage(input: { projectId?: string; userId?: string; kind: "text" | "video" | "image"; provider: string; model?: string; inputTokens?: number; outputTokens?: number; inputText?: string; outputText?: string; costCents?: number; costMicros?: number; metadata?: unknown }) {
+export async function recordUsage(input: { projectId?: string; userId?: string; kind: "text" | "video" | "image"; provider: string; model?: string; modelId?: string; inputTokens?: number; outputTokens?: number; inputText?: string; outputText?: string; durationSeconds?: number; imageCount?: number; costCents?: number; costMicros?: number; metadata?: unknown }) {
   const inputTokens = input.inputTokens ?? (input.inputText ? estimateTokens(input.inputText) : 0);
   const outputTokens = input.outputTokens ?? (input.outputText ? estimateTokens(input.outputText) : 0);
-  const costs = input.costMicros === undefined && input.kind === "text" ? await modelCostMicros(inputTokens, outputTokens) : { costMicros: input.costMicros ?? 0, costCents: input.costCents ?? 0, ratesConfigured: false };
-  const metadata = { ...(input.metadata && typeof input.metadata === "object" ? input.metadata as Record<string, unknown> : {}), costSource: input.kind === "text" && costs.ratesConfigured ? "configured-model-rate" : "unavailable" };
+  const modelPricing = await findModelPricing(input.modelId);
+  const configuredPricing = modelPricing ? pricingToView(modelPricing) : null;
+  const pricedByModel = input.costMicros === undefined && configuredPricing && configuredPricing.enabled;
+  const costs = pricedByModel
+    ? (() => { const costMicros = calculatePricing({ kind: input.kind, pricing: configuredPricing, inputTokens, outputTokens, durationSeconds: input.durationSeconds, imageCount: input.imageCount }); return { costMicros, costCents: Math.round(costMicros / 10_000), ratesConfigured: true }; })()
+    : input.costMicros === undefined && input.kind === "text"
+      ? await modelCostMicros(inputTokens, outputTokens)
+      : { costMicros: input.costMicros ?? 0, costCents: input.costCents ?? 0, ratesConfigured: false };
+  const metadata = { ...(input.metadata && typeof input.metadata === "object" ? input.metadata as Record<string, unknown> : {}), costSource: pricedByModel ? "model-pricing" : input.kind === "text" && costs.ratesConfigured ? "configured-model-rate" : "unavailable", modelId: input.modelId || undefined, pricing: configuredPricing || undefined };
   return prisma.usageRecord.create({ data: { projectId: input.projectId, userId: input.userId, kind: input.kind, provider: input.provider, model: input.model, inputTokens, outputTokens, costCents: input.costCents ?? costs.costCents, costMicros: costs.costMicros, metadata: JSON.stringify(metadata) } });
 }
 

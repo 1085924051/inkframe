@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { encryptSecret, maskSecret, decryptSecret } from "@/lib/security";
+import { pricingFromPayload, pricingToView, type ModelPricingPayload } from "@/lib/pricing";
 
 const kinds = new Set(["text", "storyboard", "image", "video"]);
 async function admin() { const session = await getSession(); return session?.role === "ADMIN" ? session : null; }
-function output(channel: { id: string; name: string; provider: string; baseUrl: string; enabled: boolean; keys: { id: string; label: string; apiKey: string; enabled: boolean }[]; models: { id: string; name: string; kind: string; enabled: boolean }[] }) {
-  return { id: channel.id, name: channel.name, provider: channel.provider, baseUrl: channel.baseUrl, enabled: channel.enabled, keys: channel.keys.map((key) => ({ id: key.id, label: key.label, enabled: key.enabled, maskedKey: key.apiKey ? maskSecret(decryptSecret(key.apiKey)) : "" })), models: channel.models };
+function output(channel: { id: string; name: string; provider: string; baseUrl: string; enabled: boolean; keys: { id: string; label: string; apiKey: string; enabled: boolean }[]; models: { id: string; name: string; kind: string; enabled: boolean; priceCurrency: string; billingUnit: string; inputPerMillionMicros: number; outputPerMillionMicros: number; videoPerSecondMicros: number; imagePerImageMicros: number; requestFixedMicros: number; priceEnabled: boolean; priceNote: string | null }[] }) {
+  return { id: channel.id, name: channel.name, provider: channel.provider, baseUrl: channel.baseUrl, enabled: channel.enabled, keys: channel.keys.map((key) => ({ id: key.id, label: key.label, enabled: key.enabled, maskedKey: key.apiKey ? maskSecret(decryptSecret(key.apiKey)) : "" })), models: channel.models.map((model) => ({ id: model.id, name: model.name, kind: model.kind, enabled: model.enabled, pricing: pricingToView(model) })) };
 }
 async function read(id: string) { return prisma.modelChannel.findUnique({ where: { id }, include: { keys: true, models: true } }); }
 
@@ -24,7 +25,7 @@ export async function POST(request: Request) {
   const models = Array.isArray(body?.models) ? body.models as Record<string, unknown>[] : []; const keys = Array.isArray(body?.keys) ? body.keys as Record<string, unknown>[] : [];
   if (!name || !baseUrl || !models.length) return NextResponse.json({ error: "渠道名称、端点和至少一个模型为必填" }, { status: 400 });
   if (models.some((model) => !String(model.name || "").trim() || !kinds.has(String(model.kind)))) return NextResponse.json({ error: "模型名称或模型类型无效" }, { status: 400 });
-  const created = await prisma.modelChannel.create({ data: { name: name.slice(0, 100), provider: provider.slice(0, 80), baseUrl: baseUrl.slice(0, 500), keys: { create: keys.filter((key) => String(key.apiKey || "")).map((key) => ({ label: String(key.label || "Key").slice(0, 80), apiKey: encryptSecret(String(key.apiKey)) })) }, models: { create: models.map((model) => ({ name: String(model.name).slice(0, 200), kind: String(model.kind) })) } }, include: { keys: true, models: true } });
+  const created = await prisma.modelChannel.create({ data: { name: name.slice(0, 100), provider: provider.slice(0, 80), baseUrl: baseUrl.slice(0, 500), keys: { create: keys.filter((key) => String(key.apiKey || "")).map((key) => ({ label: String(key.label || "Key").slice(0, 80), apiKey: encryptSecret(String(key.apiKey)) })) }, models: { create: models.map((model) => ({ name: String(model.name).slice(0, 200), kind: String(model.kind), ...pricingFromPayload(model.pricing as ModelPricingPayload | undefined) })) } }, include: { keys: true, models: true } });
   await prisma.auditLog.create({ data: { actorId: session.userId, actorName: session.email, action: "model-channel.create", targetType: "model-channel", targetId: created.id, detail: created.name } });
   return NextResponse.json({ channel: output(created) }, { status: 201 });
 }
@@ -50,7 +51,7 @@ export async function PATCH(request: Request) {
   } else if (action === "add-model") {
     const name = String(body?.name || "").trim(); const kind = String(body?.kind || "");
     if (!name || !kinds.has(kind)) return NextResponse.json({ error: "模型名称和用途无效" }, { status: 400 });
-    await prisma.modelChannelModel.create({ data: { channelId, name: name.slice(0, 200), kind } });
+    await prisma.modelChannelModel.create({ data: { channelId, name: name.slice(0, 200), kind, ...pricingFromPayload(body?.pricing as ModelPricingPayload | undefined) } });
   } else if (action === "toggle-model") {
     if (!await prisma.modelChannelModel.findFirst({ where: { id: childId, channelId } })) return NextResponse.json({ error: "模型不属于当前渠道" }, { status: 404 });
     await prisma.modelChannelModel.update({ where: { id: childId }, data: { enabled: Boolean(body?.enabled) } });
@@ -70,7 +71,7 @@ export async function PATCH(request: Request) {
     await prisma.$transaction(async (tx) => {
       await tx.modelChannel.update({ where: { id: channelId }, data: { name: name.slice(0, 100), provider: provider.slice(0, 80), baseUrl: baseUrl.slice(0, 500) } });
       await tx.modelChannelModel.deleteMany({ where: { channelId } });
-      await tx.modelChannelModel.createMany({ data: models.map((model) => ({ channelId, name: String(model.name).trim().slice(0, 200), kind: String(model.kind), enabled: model.enabled === undefined ? true : Boolean(model.enabled) })) });
+      await tx.modelChannelModel.createMany({ data: models.map((model) => ({ channelId, name: String(model.name).trim().slice(0, 200), kind: String(model.kind), enabled: model.enabled === undefined ? true : Boolean(model.enabled), ...pricingFromPayload(model.pricing as ModelPricingPayload | undefined) })) });
       const newKeys = keys.filter((key) => String(key.apiKey || "").trim());
       if (newKeys.length) await tx.modelChannelKey.createMany({ data: newKeys.map((key) => ({ channelId, label: String(key.label || "Key").slice(0, 80), apiKey: encryptSecret(String(key.apiKey).trim()) })) });
     });

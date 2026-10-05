@@ -6,6 +6,7 @@ import { createImageJob } from "@/lib/image-jobs";
 import { selectedImageProvider } from "@/lib/image";
 import { isSameOrigin } from "@/lib/rate-limit";
 import { resolutionPrompt } from "@/lib/resolution";
+import { recordUsage } from "@/lib/usage";
 
 export async function POST(request: Request, context: { params: { id: string; characterId: string } }) {
   if (!isSameOrigin(request)) return NextResponse.json({ error: "Invalid origin" }, { status: 403 });
@@ -21,5 +22,6 @@ export async function POST(request: Request, context: { params: { id: string; ch
   const job = await createImageJob({ projectId: project.id!, episodeId: body?.episodeId, characterId: character.id, assetType: "character", view: body?.view || "front", modelId: body?.modelId, provider: provider.name, model: body?.model || character.imageModel || undefined, prompt, negativePrompt: body?.negativePrompt || character.negativePrompt || undefined });
   const { enqueueImageJob } = await import("@/lib/queue");
   if (!await enqueueImageJob(job.id)) { const { ensureWorker } = await import("@/lib/worker"); ensureWorker(); }
+  await recordUsage({ projectId: project.id, userId: session.userId, kind: "image", provider: provider.name, model: body?.model, modelId: body?.modelId, imageCount: 1, metadata: { imageJobId: job.id, assetType: "character", view: body?.view || "front" } });
   return NextResponse.json({ job }, { status: 202 });
 }

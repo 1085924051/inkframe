@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { decryptSecret, encryptSecret, maskSecret } from "@/lib/security";
+import { pricingFromPayload, pricingToView, type ModelPricingPayload } from "@/lib/pricing";
 
 const kinds = new Set(["text", "storyboard", "image", "video"]);
 const providers = new Set(["openai-compatible", "vllm", "mock-image", "openai-image", "replicate", "comfyui", "penshot", "runway", "kling", "seedance"]);
@@ -11,9 +12,9 @@ async function admin() {
   return session && session.role === "ADMIN" ? session : null;
 }
 
-function publicProfile(row: { id: string; name: string; kind: string; provider: string; baseUrl: string; apiKey: string; model: string; enabled: boolean; createdAt: Date; updatedAt: Date }) {
+function publicProfile(row: { id: string; name: string; kind: string; provider: string; baseUrl: string; apiKey: string; model: string; enabled: boolean; createdAt: Date; updatedAt: Date; priceCurrency: string; billingUnit: string; inputPerMillionMicros: number; outputPerMillionMicros: number; videoPerSecondMicros: number; imagePerImageMicros: number; requestFixedMicros: number; priceEnabled: boolean; priceNote: string | null }) {
   const plain = row.apiKey ? decryptSecret(row.apiKey) : "";
-  return { ...row, apiKey: plain ? maskSecret(plain) : "", configured: Boolean(row.baseUrl && plain && row.model) };
+  return { ...row, apiKey: plain ? maskSecret(plain) : "", pricing: pricingToView(row), configured: Boolean(row.baseUrl && plain && row.model) };
 }
 
 export async function GET() {
@@ -33,7 +34,7 @@ export async function POST(request: Request) {
   const model = String(body?.model || "").trim();
   const apiKey = String(body?.apiKey || "");
   if (!name || !kinds.has(kind) || !providers.has(provider) || !baseUrl || !model) return NextResponse.json({ error: "名称、类型、Provider、接口地址和模型名均为必填" }, { status: 400 });
-  const created = await prisma.modelProfile.create({ data: { name: name.slice(0, 100), kind, provider, baseUrl: baseUrl.slice(0, 500), apiKey: apiKey ? encryptSecret(apiKey) : "", model: model.slice(0, 200), enabled: body?.enabled !== false } });
+  const created = await prisma.modelProfile.create({ data: { name: name.slice(0, 100), kind, provider, baseUrl: baseUrl.slice(0, 500), apiKey: apiKey ? encryptSecret(apiKey) : "", model: model.slice(0, 200), enabled: body?.enabled !== false, ...pricingFromPayload(body?.pricing as ModelPricingPayload | undefined) } });
   await prisma.auditLog.create({ data: { actorId: session.userId, actorName: session.email, action: "model-profile.create", targetType: "model-profile", targetId: created.id, detail: created.name } });
   return NextResponse.json({ profile: publicProfile(created) }, { status: 201 });
 }
@@ -46,10 +47,11 @@ export async function PATCH(request: Request) {
   if (!id) return NextResponse.json({ error: "缺少模型档案 id" }, { status: 400 });
   const current = await prisma.modelProfile.findUnique({ where: { id } });
   if (!current) return NextResponse.json({ error: "模型档案不存在" }, { status: 404 });
-  const data: Record<string, string | boolean> = {};
+  const data: Record<string, string | boolean | number | null> = {};
   for (const key of ["name", "kind", "provider", "baseUrl", "model"]) if (body?.[key] !== undefined) data[key] = String(body[key]).trim();
   if (body?.enabled !== undefined) data.enabled = Boolean(body.enabled);
   if (body?.apiKey && !String(body.apiKey).includes("••••")) data.apiKey = encryptSecret(String(body.apiKey));
+  if (body?.pricing && typeof body.pricing === "object") Object.assign(data, pricingFromPayload(body.pricing as ModelPricingPayload));
   const updated = await prisma.modelProfile.update({ where: { id }, data });
   await prisma.auditLog.create({ data: { actorId: session.userId, actorName: session.email, action: "model-profile.update", targetType: "model-profile", targetId: id, detail: updated.name } });
   return NextResponse.json({ profile: publicProfile(updated) });
@@ -63,4 +65,3 @@ export async function DELETE(request: Request) {
   await prisma.modelProfile.delete({ where: { id: body.id } });
   return NextResponse.json({ ok: true });
 }
-

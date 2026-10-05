@@ -85,7 +85,7 @@ export async function POST(request: Request) {
     ? await updateProjectContent(String(body.projectId), project, { userId: session.userId, isAdmin: session.role === "ADMIN", writerId, directorId, format, episodeCount, wordsPerEpisode, scriptLength, narrativePerspective, storyBible: typeof body.storyBible === "string" ? body.storyBible : undefined, resolutionPreset })
     : await saveProject(project, { writerId, directorId, userId: session.userId, format, episodeCount, wordsPerEpisode, scriptLength, narrativePerspective, storyBible: typeof body.storyBible === "string" ? body.storyBible : undefined, resolutionPreset });
   if (!stored) return NextResponse.json({ error: "项目不存在或无权修改" }, { status: 404 });
-  await recordUsage({ projectId: stored.id, userId: session.userId, kind: "text", provider: modelUsage ? "llm" : "local", model: modelUsage?.model || project.engine, inputTokens: modelUsage?.inputTokens, outputTokens: modelUsage?.outputTokens, inputText: modelUsage ? undefined : topic, outputText: modelUsage ? undefined : project.script, metadata: { trace, estimatedTokens: modelUsage?.estimated ?? true } });
+  await recordUsage({ projectId: stored.id, userId: session.userId, kind: "text", provider: modelUsage ? "llm" : "local", model: modelUsage?.model || project.engine, modelId: typeof body.modelId === "string" ? body.modelId : undefined, inputTokens: modelUsage?.inputTokens, outputTokens: modelUsage?.outputTokens, inputText: modelUsage ? undefined : topic, outputText: modelUsage ? undefined : project.script, metadata: { trace, estimatedTokens: modelUsage?.estimated ?? true } });
   await recordAudit(session, "project.create", "project", stored.id, stored.title);
   return NextResponse.json({ project: stored, trace });
 }

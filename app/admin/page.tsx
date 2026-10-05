@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plug, ScrollText, Shield, Sparkles, Trash2, Users } from "lucide-react";
+import { CalendarDays, Plug, ScrollText, Shield, Sparkles, Trash2, Users } from "lucide-react";
 
 type UserRow = { id: string; email: string; name: string; role: string; status: string; projectCount: number; createdAt: string };
 type Me = { id: string; email: string; name: string; role: string };
@@ -11,7 +11,7 @@ export default function AdminPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<{ users: number; projects: number; scenes: number; shots: number; jobs: number } | null>(null);
+  const [stats, setStats] = useState<{ users: number; projects: number; scenes: number; shots: number; jobs: number; costCents?: number } | null>(null);
 
   async function load() {
     setLoading(true);
@@ -51,6 +51,7 @@ export default function AdminPage() {
         <a href="/"><Users size={17} /> 返回工作台</a>
         <a className="active"><Shield size={17} /> 用户管理</a>
         <a href="/admin/settings"><Plug size={17} /> 模型配置</a>
+        <a href="/admin/campaigns"><CalendarDays size={17} /> 活动管理</a>
         <a href="/admin/audit"><ScrollText size={17} /> 审计日志</a>
       </nav>
       <div className="side-bottom"><div className="status-dot" /> <span>{me?.name ?? "…"}</span></div>
@@ -59,7 +60,7 @@ export default function AdminPage() {
       <header className="topbar"><div><span className="eyebrow">ADMIN / USERS</span><h1>用户与权限管理</h1></div><span className="panel-note">{users.length} 位用户</span></header>
       <div className="admin-content">
         {error && <div className="auth-error">{error}</div>}
-        {stats && <div className="stat-grid"><div className="stat-card"><b>{stats.users}</b><span>用户</span></div><div className="stat-card"><b>{stats.projects}</b><span>项目</span></div><div className="stat-card"><b>{stats.scenes}</b><span>场景</span></div><div className="stat-card"><b>{stats.jobs}</b><span>视频任务</span></div></div>}
+        {stats && <div className="stat-grid"><div className="stat-card"><b>{stats.users}</b><span>用户</span></div><div className="stat-card"><b>{stats.projects}</b><span>项目</span></div><div className="stat-card"><b>{stats.scenes}</b><span>场景</span></div><div className="stat-card"><b>{stats.jobs}</b><span>视频任务</span></div><div className="stat-card"><b>¥{((stats.costCents || 0) / 100).toFixed(2)}</b><span>累计模型成本</span></div></div>}
         {loading ? <div className="empty-state"><p>加载中…</p></div> : (
           <table className="admin-table">
             <thead><tr><th>用户</th><th>邮箱</th><th>角色</th><th>状态</th><th>项目数</th><th>操作</th></tr></thead>

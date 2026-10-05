@@ -266,6 +266,15 @@ model ModelProfile {
   apiKey      String   @default("")
   model       String
   enabled     Boolean  @default(true)
+  priceCurrency String @default("CNY")
+  billingUnit String   @default("request")
+  inputPerMillionMicros Int @default(0)
+  outputPerMillionMicros Int @default(0)
+  videoPerSecondMicros Int @default(0)
+  imagePerImageMicros Int @default(0)
+  requestFixedMicros Int @default(0)
+  priceEnabled Boolean @default(true)
+  priceNote String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   @@index([kind, enabled])
@@ -303,6 +312,15 @@ model ModelChannelModel {
   name        String
   kind        String       // text | storyboard | image | video
   enabled     Boolean      @default(true)
+  priceCurrency String @default("CNY")
+  billingUnit String       @default("request")
+  inputPerMillionMicros Int @default(0)
+  outputPerMillionMicros Int @default(0)
+  videoPerSecondMicros Int @default(0)
+  imagePerImageMicros Int @default(0)
+  requestFixedMicros Int @default(0)
+  priceEnabled Boolean @default(true)
+  priceNote String?
   createdAt   DateTime     @default(now())
   channel     ModelChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
   imageJobs   ImageJob[]
@@ -351,4 +369,25 @@ model UsageRecord {
   project      Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
   @@index([projectId])
   @@index([createdAt])
+}
+
+model Campaign {
+  id              String   @id @default(cuid())
+  name            String
+  title           String
+  subtitle        String
+  badge           String?
+  discountPercent Int      @default(0)
+  bonusPercent    Int      @default(0)
+  startsAt        DateTime?
+  endsAt          DateTime?
+  enabled         Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  ctaLabel        String   @default("立即创作")
+  ctaHref         String   @default("/register")
+  createdBy       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@index([enabled, sortOrder])
+  @@index([startsAt, endsAt])
 }

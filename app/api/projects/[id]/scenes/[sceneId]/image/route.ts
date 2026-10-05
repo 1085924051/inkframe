@@ -6,6 +6,7 @@ import { createImageJob } from "@/lib/image-jobs";
 import { selectedImageProvider } from "@/lib/image";
 import { isSameOrigin } from "@/lib/rate-limit";
 import { resolutionPrompt } from "@/lib/resolution";
+import { recordUsage } from "@/lib/usage";
 
 export async function POST(request: Request, context: { params: { id: string; sceneId: string } }) {
   if (!isSameOrigin(request)) return NextResponse.json({ error: "Invalid origin" }, { status: 403 });
@@ -19,5 +20,6 @@ export async function POST(request: Request, context: { params: { id: string; sc
   const prompt = body?.prompt || `影棚纯色背景，影视场景参考图，${scene.title}，${scene.content}，high detail, clean production design, no people unless required`;
   const job = await createImageJob({ projectId: project.id!, episodeId: body?.episodeId || scene.episodeId || undefined, sceneId: scene.id, assetType: "scene", view: body?.view || "establishing", modelId: body?.modelId, provider: provider.name, model: body?.model, prompt: `${prompt}；${resolutionPrompt(project.resolutionPreset)}`, negativePrompt: "text, subtitle, watermark, clutter, inconsistent architecture" });
   const { enqueueImageJob } = await import("@/lib/queue"); if (!await enqueueImageJob(job.id)) { const { ensureWorker } = await import("@/lib/worker"); ensureWorker(); }
+  await recordUsage({ projectId: project.id, userId: session.userId, kind: "image", provider: provider.name, model: body?.model, modelId: body?.modelId, imageCount: 1, metadata: { imageJobId: job.id, assetType: "scene", view: body?.view || "establishing" } });
   return NextResponse.json({ job }, { status: 202 });
 }
