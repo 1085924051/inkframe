@@ -130,7 +130,7 @@ function ShotAssociationEditor({ shot, characters, assets, onChange }: { shot: P
 
 function ProjectResolutionSelector({ value, onChange }: { value: ResolutionPreset; onChange: (value: ResolutionPreset) => void }) {
   const option = getResolutionOption(value);
-  return <section className="project-resolution-bar"><div><b>项目统一分辨率</b><small>后续所有人物、场景与视频分镜沿用同一横竖屏比例</small></div><label className="field"><span>画布比例与尺寸</span><select className="select-button" value={value} onChange={(event) => onChange(event.target.value as ResolutionPreset)}>{RESOLUTION_OPTIONS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label><span className="resolution-summary">当前：{option.ratio} · {option.width}×{option.height}</span></section>;
+  return <section className="project-resolution-bar"><div><b>项目统一分辨率</b><small>后续所有人物、场景与视频分镜沿用同一横竖屏比例</small></div><label className="field"><span>画质、比例与尺寸</span><select className="select-button" value={value} onChange={(event) => onChange(event.target.value as ResolutionPreset)}>{RESOLUTION_OPTIONS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label><span className="resolution-summary">当前：{option.providerResolution.toUpperCase()} · {option.ratio} · {option.width}×{option.height}</span></section>;
 }
 
 function SelectedShotVideoPanel({ shot, status, models, modelId, provider, onModel, onGenerate }: { shot: Shot; status?: JobState; models: ModelProfile[]; modelId: string; provider: string; onModel: (model: ModelProfile | undefined) => void; onGenerate: () => void }) {
