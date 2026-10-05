@@ -38,6 +38,8 @@
 - 权限控制：角色 RBAC（`USER` / `ADMIN`），项目按用户归属隔离，受保护接口统一鉴权
 - 后台管理：`/admin` 用户管理页 + `/api/admin/*` 接口（改角色、禁用、删除；首个注册账号自动成为管理员）
 - 后台模型配置：`/admin/settings` 页面 + `SystemSetting` 表（密钥 AES-256-GCM 加密/脱敏 + 连通性测试），运行时按 DB 配置 > 环境变量 > 本地回退解析
+- 支付与余额：`/account` 个人中心支持 Mock / 支付宝扫码 / 微信 Native 扫码充值；支付订单、异步回调、回调验签、幂等入账和钱包流水均持久化到 `PaymentOrder` / `WalletTransaction`
+- 后台支付配置：`/admin/settings/payments` 可维护支付渠道、余额强制扣款、支付宝 RSA2 和微信支付 V3 所需参数；真实回调地址必须是公网 HTTPS
 - 后台仪表盘：`/api/admin/stats` 统计 + `/admin` 统计卡片
 - 操作审计日志：`AuditLog` 模型 + `/admin/audit` 页面 + `/api/admin/audit`（记录配置修改/用户变更/项目创建）
 - 健康检查：`/api/health`
@@ -82,6 +84,15 @@ npm run start
 ```
 
 打开 `http://localhost:3000`。
+
+### 支付配置
+
+本地测试时在后台选择 `Mock`，进入个人中心点击「充值」，创建订单后点击「模拟支付完成」即可验证余额入账和钱包流水。生产环境建议先设置 `SETTINGS_ENCRYPTION_KEY`，再在 `/admin/settings/payments` 填写：
+
+- 支付宝：App ID、RSA2 应用私钥、支付宝公钥、异步通知地址 `https://你的域名/api/payments/callback/alipay`
+- 微信支付：App ID、商户号、证书序列号、商户私钥、API v3 密钥、微信支付平台证书、回调地址 `https://你的域名/api/payments/callback/wechat`
+
+将 `PAYMENT_PROVIDER` 设置为 `alipay` 或 `wechat` 后，个人中心会生成对应的扫码订单；支付平台异步通知成功验签后才会给用户余额入账。`BILLING_ENFORCE_BALANCE=true` 时，已配置价格的模型会在用量记录时扣除余额；默认 `false` 只记录成本，便于开发联调。
 
 Docker 部署：
 

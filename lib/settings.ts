@@ -6,7 +6,7 @@ import { decryptSecret, encryptSecret, encryptionEnabled, maskSecret } from "./s
 // 密钥类配置在启用 SETTINGS_ENCRYPTION_KEY 时 AES-256-GCM 加密落库。
 // ============================================================
 
-export type SettingMeta = { key: string; label: string; group: "text" | "storyboard" | "image" | "video"; isSecret: boolean };
+export type SettingMeta = { key: string; label: string; group: "text" | "storyboard" | "image" | "video" | "payment"; isSecret: boolean };
 
 export const SETTING_META: SettingMeta[] = [
   { key: "ASSET_PUBLIC_BASE_URL", label: "素材公网访问地址", group: "video", isSecret: false },
@@ -34,6 +34,21 @@ export const SETTING_META: SettingMeta[] = [
   { key: "SEEDANCE_API_URL", label: "Seedance 接口地址", group: "video", isSecret: false },
   { key: "SEEDANCE_API_KEY", label: "Seedance API Key", group: "video", isSecret: true },
   { key: "SEEDANCE_MODEL", label: "Seedance 模型名", group: "video", isSecret: false },
+  { key: "PAYMENT_PROVIDER", label: "扫码支付渠道（mock / alipay / wechat）", group: "payment", isSecret: false },
+  { key: "BILLING_ENFORCE_BALANCE", label: "生成前强制余额扣款（true / false）", group: "payment", isSecret: false },
+  { key: "ALIPAY_APP_ID", label: "支付宝 App ID", group: "payment", isSecret: false },
+  { key: "ALIPAY_PRIVATE_KEY", label: "支付宝应用私钥", group: "payment", isSecret: true },
+  { key: "ALIPAY_PUBLIC_KEY", label: "支付宝公钥", group: "payment", isSecret: true },
+  { key: "ALIPAY_GATEWAY_URL", label: "支付宝网关地址", group: "payment", isSecret: false },
+  { key: "ALIPAY_NOTIFY_URL", label: "支付宝异步回调地址", group: "payment", isSecret: false },
+  { key: "WECHAT_APP_ID", label: "微信支付 App ID", group: "payment", isSecret: false },
+  { key: "WECHAT_MCH_ID", label: "微信支付商户号", group: "payment", isSecret: false },
+  { key: "WECHAT_SERIAL_NO", label: "微信支付商户证书序列号", group: "payment", isSecret: false },
+  { key: "WECHAT_API_URL", label: "微信支付 API 地址", group: "payment", isSecret: false },
+  { key: "WECHAT_PRIVATE_KEY", label: "微信支付商户私钥", group: "payment", isSecret: true },
+  { key: "WECHAT_API_V3_KEY", label: "微信支付 API v3 密钥", group: "payment", isSecret: true },
+  { key: "WECHAT_PLATFORM_CERTIFICATE", label: "微信支付平台证书", group: "payment", isSecret: true },
+  { key: "WECHAT_NOTIFY_URL", label: "微信支付异步回调地址", group: "payment", isSecret: false },
 ];
 
 const SECRET_KEYS = new Set(SETTING_META.filter((m) => m.isSecret).map((m) => m.key));

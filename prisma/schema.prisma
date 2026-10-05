@@ -14,7 +14,10 @@ model User {
   passwordHash String
   role         String    @default("USER") // USER | ADMIN
   status       String    @default("active") // active | disabled
+  balanceMicros Int      @default(0)
   projects     Project[]
+  paymentOrders PaymentOrder[]
+  walletTransactions WalletTransaction[]
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 }
@@ -390,4 +393,42 @@ model Campaign {
   updatedAt       DateTime @updatedAt
   @@index([enabled, sortOrder])
   @@index([startsAt, endsAt])
+}
+
+model PaymentOrder {
+  id              String   @id @default(cuid())
+  orderNo         String   @unique
+  userId          String
+  provider        String   // alipay | wechat | mock
+  subject         String
+  amountMicros    Int
+  creditMicros    Int
+  status          String   @default("pending") // pending | paid | closed | failed
+  qrCode          String?
+  providerTradeNo String?  @unique
+  rawPayload      String?
+  expiresAt       DateTime
+  paidAt          DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions    WalletTransaction[]
+  @@index([userId, status, createdAt])
+  @@index([provider, status])
+}
+
+model WalletTransaction {
+  id                String        @id @default(cuid())
+  userId            String
+  orderId           String?
+  type              String        // recharge | usage | refund | adjustment
+  amountMicros      Int           // signed delta: recharge positive, usage negative
+  balanceAfterMicros Int
+  description       String
+  metadata          String?
+  createdAt         DateTime      @default(now())
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order             PaymentOrder? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  @@index([userId, createdAt])
+  @@index([orderId])
 }

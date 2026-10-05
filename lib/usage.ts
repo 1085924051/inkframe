@@ -1,6 +1,7 @@
 import { prisma } from "./prisma";
 import { getModelConfigValue } from "./settings";
 import { calculatePricing, findModelPricing, pricingToView } from "./pricing";
+import { billingEnforced } from "./payment";
 
 export function estimateTokens(text: string) {
   return Math.max(1, Math.ceil(Array.from(text).length / 4));
@@ -27,7 +28,17 @@ export async function recordUsage(input: { projectId?: string; userId?: string; 
       ? await modelCostMicros(inputTokens, outputTokens)
       : { costMicros: input.costMicros ?? 0, costCents: input.costCents ?? 0, ratesConfigured: false };
   const metadata = { ...(input.metadata && typeof input.metadata === "object" ? input.metadata as Record<string, unknown> : {}), costSource: pricedByModel ? "model-pricing" : input.kind === "text" && costs.ratesConfigured ? "configured-model-rate" : "unavailable", modelId: input.modelId || undefined, pricing: configuredPricing || undefined };
-  return prisma.usageRecord.create({ data: { projectId: input.projectId, userId: input.userId, kind: input.kind, provider: input.provider, model: input.model, inputTokens, outputTokens, costCents: input.costCents ?? costs.costCents, costMicros: costs.costMicros, metadata: JSON.stringify(metadata) } });
+  const shouldCharge = Boolean(input.userId && costs.costMicros > 0 && await billingEnforced());
+  return prisma.$transaction(async (tx) => {
+    if (shouldCharge && input.userId) {
+      const changed = await tx.user.updateMany({ where: { id: input.userId, balanceMicros: { gte: costs.costMicros } }, data: { balanceMicros: { decrement: costs.costMicros } } });
+      if (changed.count !== 1) throw new Error("余额不足，请先充值后再生成");
+      const current = await tx.user.findUnique({ where: { id: input.userId }, select: { balanceMicros: true } });
+      if (!current) throw new Error("账户不存在");
+      await tx.walletTransaction.create({ data: { userId: input.userId, type: "usage", amountMicros: -costs.costMicros, balanceAfterMicros: current.balanceMicros, description: `${input.kind} 模型用量 · ${input.model || input.provider}`, metadata: JSON.stringify(metadata).slice(0, 20000) } });
+    }
+    return tx.usageRecord.create({ data: { projectId: input.projectId, userId: input.userId, kind: input.kind, provider: input.provider, model: input.model, inputTokens, outputTokens, costCents: input.costCents ?? costs.costCents, costMicros: costs.costMicros, metadata: JSON.stringify({ ...metadata, balanceCharged: shouldCharge }) } });
+  });
 }
 
 export async function usageSummary(projectId?: string) {

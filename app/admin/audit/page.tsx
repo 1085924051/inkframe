@@ -39,6 +39,7 @@ export default function AuditPage() {
         <a href="/account"><Users size={17} /> 个人中心</a>
         <a href="/admin"><Shield size={17} /> 用户管理</a>
         <a href="/admin/settings"><Plug size={17} /> 模型配置</a>
+        <a href="/admin/settings/payments"><Plug size={17} /> 支付与账单</a>
         <a className="active"><ScrollText size={17} /> 审计日志</a>
       </nav>
       <div className="side-bottom"><div className="status-dot" /> <span>系统审计</span></div>
