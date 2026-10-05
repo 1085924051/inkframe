@@ -60,6 +60,8 @@
 .admin-side{width:214px;flex:0 0 214px;background:#edf1eb;border-right:1px solid #dce2dc;padding:30px 18px 22px;display:flex;flex-direction:column}
 .admin-side .side-nav{margin-top:35px}
 .admin-main{flex:1;min-width:0}
+.admin-route-shell{min-height:100vh;display:flex}.admin-route-shell>.admin-shell{display:contents}.admin-route-shell>.admin-shell>.admin-side{display:none}.admin-side-shared{position:relative;z-index:2}.admin-side-shared .side-nav{gap:5px}.admin-side-shared .side-nav a{white-space:nowrap}.admin-side-shared .side-bottom{margin-top:auto}
+@media(max-width:900px){.admin-side-shared{width:72px;flex-basis:72px;padding:26px 12px}.admin-side-shared .brand{justify-content:center;padding-left:0}.admin-side-shared .brand span,.admin-side-shared .brand small,.admin-side-shared .side-nav a:not(.active)::after,.admin-side-shared .side-nav a{font-size:0}.admin-side-shared .brand-mark{margin-right:0}.admin-side-shared .side-nav{margin-top:28px}.admin-side-shared .side-nav a{justify-content:center;padding:13px 8px}.admin-side-shared .side-nav a svg{width:18px;height:18px}.admin-side-shared .side-nav a.active{font-size:0}.admin-side-shared .side-bottom{justify-content:center;padding-left:0;padding-right:0}.admin-side-shared .side-bottom span{display:none}}
 .admin-content{max-width:1000px;margin:0 auto;padding:40px 50px}
 .admin-table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #e0e6df;border-radius:10px;overflow:hidden}
 .admin-table th,.admin-table td{text-align:left;padding:13px 16px;border-bottom:1px solid #e8ece7;font-size:13px;color:#53635a}
