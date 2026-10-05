@@ -28,7 +28,7 @@ export default function LoginPage() {
 
   return <main className="auth-shell">
     <div className="auth-card">
-      <div className="brand"><div className="brand-mark"><Sparkles size={17} /></div><span>INKFRAME</span><small>STUDIO</small></div>
+      <a className="brand brand-link" href="/home" aria-label="返回首页"><div className="brand-mark"><Sparkles size={17} /></div><span>INKFRAME</span><small>STUDIO</small></a>
       <h1>欢迎回来</h1>
       <p className="auth-sub">登录后继续你的短剧创作</p>
       <label className="field"><span>邮箱</span><input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" /></label>

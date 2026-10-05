@@ -32,9 +32,11 @@ export default function AuditPage() {
 
   return <main className="admin-shell">
     <aside className="admin-side">
-      <div className="brand"><div className="brand-mark"><Sparkles size={17} /></div><span>INKFRAME</span><small>ADMIN</small></div>
+      <a className="brand brand-link" href="/home" aria-label="返回首页"><div className="brand-mark"><Sparkles size={17} /></div><span>INKFRAME</span><small>ADMIN</small></a>
       <nav className="side-nav">
+        <a href="/home"><Users size={17} /> 首页</a>
         <a href="/"><Users size={17} /> 返回工作台</a>
+        <a href="/account"><Users size={17} /> 个人中心</a>
         <a href="/admin"><Shield size={17} /> 用户管理</a>
         <a href="/admin/settings"><Plug size={17} /> 模型配置</a>
         <a className="active"><ScrollText size={17} /> 审计日志</a>

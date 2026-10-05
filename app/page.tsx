@@ -347,6 +347,7 @@ export default function Home() {
   const [textModels, setTextModels] = useState<ModelProfile[]>([]);
   const workspaceProjectIdRef = useRef<string | null>(null);
   const projectLoadRequestRef = useRef(0);
+  const openedProjectFromUrlRef = useRef<string | null>(null);
 
   const writerOptions = useMemo(() => Array.from(new Map([...(pendingWriterStyle ? [pendingWriterStyle] : []), ...(customWriter ? [customWriter] : []), ...savedWriters, ...writerStyles].map((style) => [style.id, style])).values()), [customWriter, pendingWriterStyle, savedWriters]);
   const directorOptions = useMemo(() => Array.from(new Map([...savedDirectors, ...directorStyles].map((style) => [style.id, style])).values()), [savedDirectors]);
@@ -471,6 +472,13 @@ export default function Home() {
   useEffect(() => {
     fetch("/api/auth/me").then((r) => r.json()).then((d) => { if (d.user) { setUser(d.user); void loadProjects(); void loadStyles(); } setAuthChecked(true); }).catch(() => setAuthChecked(true));
   }, []);
+
+  useEffect(() => {
+    const requestedProjectId = new URLSearchParams(window.location.search).get("project");
+    if (!user || !requestedProjectId || openedProjectFromUrlRef.current === requestedProjectId || !projects.some((item) => item.id === requestedProjectId)) return;
+    openedProjectFromUrlRef.current = requestedProjectId;
+    void openProject(requestedProjectId);
+  }, [user?.id, projects]);
 
   useEffect(() => {
     if (project?.id) void loadVideoJobs(project);
@@ -1416,7 +1424,7 @@ export default function Home() {
 
     <StyleEditorModal editor={styleEditor} onClose={() => setStyleEditor(null)} onSave={(editor) => void saveStyleEditor(editor)} />
     <aside className="sidebar">
-      <div className="brand"><div className="brand-mark"><Sparkles size={17} /></div><span>INKFRAME</span><small>STUDIO</small></div>
+      <a className="brand brand-link" href="/home" aria-label="返回首页"><div className="brand-mark"><Sparkles size={17} /></div><span>INKFRAME</span><small>STUDIO</small></a>
       <div className="workspace-label">创作空间</div>
       <button className="new-project" onClick={newProject}><Plus size={16} /> 新建项目 <span>⌘ N</span></button>
       <nav className="side-nav side-nav-functional" aria-label="工作区导航">
@@ -1453,7 +1461,7 @@ export default function Home() {
     </aside>
 
     <section className="main-area">
-      <header className="topbar"><div><span className="eyebrow">WORKSPACE / 01</span><h1>短剧生成工作台</h1></div><div className="top-actions">{user && <span className="save-state"><Check size={14} /> {user.role === "ADMIN" ? "管理员" : "已登录"} · {user.name}</span>}{user?.role === "ADMIN" && <a className="admin-link" href="/admin"><Shield size={15} /> 后台管理</a>}<button className="avatar">{user?.name?.charAt(0) ?? "?"}</button><button className="logout-link" onClick={() => void logout()}>退出</button></div></header>
+      <header className="topbar"><div><span className="eyebrow">WORKSPACE / 01</span><h1>短剧生成工作台</h1></div><div className="top-actions"><a className="top-nav-link" href="/home">首页</a><a className="top-nav-link" href="/account">个人中心</a>{user && <span className="save-state"><Check size={14} /> {user.role === "ADMIN" ? "管理员" : "已登录"} · {user.name}</span>}{user?.role === "ADMIN" && <a className="admin-link" href="/admin"><Shield size={15} /> 后台管理</a>}<a className="avatar avatar-link" href="/account" title="个人中心" aria-label="打开个人中心">{user?.name?.charAt(0) ?? "?"}</a><button className="logout-link" onClick={() => void logout()}>退出</button></div></header>
        <section className="hero-top"><div><div className="kicker"><span className="pulse" /> AI STORY PIPELINE</div><h2>把文字的气质<br /><i>拍成一部短剧</i></h2><p>从创作简报和风格出发，让每一个场景都拥有自己的叙事温度。</p></div><div className="hero-meta"><div className="meta-number">0{Math.max(1, workflowSteps.findIndex((item) => item.id === activeStep) + 1)}<span>/ 04</span></div><div className="meta-copy">当前阶段<br /><strong>{workflowSteps.find((item) => item.id === activeStep)?.label || "创作简报"}</strong></div></div></section>
         <CampaignBanner compact />
         <WorkflowBar steps={workflowSteps} activeStep={activeStep} project={project} onSelect={(step) => { setActionError(""); setActiveStep(step); }} />

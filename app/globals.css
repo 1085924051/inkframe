@@ -258,6 +258,45 @@ section:has(.shot-strip) .section-index::after{content:"04 / 分镜提示词";fo
   .preview-stage,.scene-preview-stage{padding:14px}
 }
 
+.brand-link{color:inherit;text-decoration:none;cursor:pointer}
+.brand-link:hover{color:var(--teal)}
+.top-nav-link{color:#74857c;text-decoration:none;font-size:11px;white-space:nowrap}
+.top-nav-link:hover{color:var(--teal)}
+.avatar-link{display:grid;place-items:center;text-decoration:none}
+
+.account-shell{min-height:100vh;background:#f4f7f2;color:var(--ink)}
+.account-topbar{height:78px;background:#f8faf6;border-bottom:1px solid #dce4dc;display:flex;align-items:center;gap:38px;padding:0 max(24px,calc((100vw - 1240px)/2));position:sticky;top:0;z-index:10}
+.account-brand{display:flex;align-items:center;gap:8px;color:var(--ink);text-decoration:none;font-size:14px;font-weight:800;letter-spacing:.14em;white-space:nowrap}
+.account-brand small{color:var(--teal);font:8px 'DM Mono';letter-spacing:.16em}
+.account-brand-mark{display:grid;place-items:center;width:28px;height:28px;border-radius:8px;background:var(--ink);color:#e8f0e9}
+.account-topbar nav{display:flex;align-items:center;gap:24px;flex:1}
+.account-topbar nav a{color:#78887e;text-decoration:none;font-size:12px}
+.account-topbar nav a:hover,.account-topbar nav .account-nav-active{color:var(--teal);font-weight:700}
+.account-logout{border:1px solid #d5dfd5;background:#fff;border-radius:7px;color:#718077;display:flex;align-items:center;gap:6px;padding:8px 11px;font-size:11px;cursor:pointer}
+.account-logout:hover{border-color:#8fb8a8;color:var(--teal);transform:translateY(-1px)}
+.account-content{max-width:1160px;margin:0 auto;padding:55px 32px 70px}
+.account-heading{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin-bottom:30px}
+.account-eyebrow,.account-section-heading>div>span{font:10px 'DM Mono';letter-spacing:.14em;color:#8a9d91}
+.account-heading h1{font:800 38px/1.2 'Noto Serif SC',serif;letter-spacing:-.06em;margin:12px 0 8px}
+.account-heading p{font-size:13px;color:#7c8c82;margin:0}
+.account-workspace-button{display:inline-flex;align-items:center;gap:8px;padding:11px 14px;border-radius:7px;background:var(--teal);color:#f4fff7;text-decoration:none;font-size:11px;font-weight:700;white-space:nowrap}
+.account-workspace-button:hover{background:#2f7267;transform:translateY(-1px)}
+.account-profile-grid{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:12px}
+.account-profile-card,.account-balance-card,.account-stat-card{min-height:118px;border:1px solid #dce5dc;border-radius:11px;background:#fff;padding:20px;display:flex;align-items:center;gap:14px;box-shadow:0 8px 25px rgba(48,73,58,.04)}
+.account-profile-card{position:relative}
+.account-avatar{width:48px;height:48px;border-radius:14px;background:#dcece1;color:#3b7b6a;display:grid;place-items:center;flex:0 0 auto}
+.account-profile-card>div:nth-child(2){display:grid;gap:4px;min-width:0}.account-profile-card b{font-size:15px}.account-profile-card span,.account-profile-card small{color:#85938b;font-size:11px;overflow:hidden;text-overflow:ellipsis}.account-profile-card small{color:#4b8b77}
+.account-profile-settings{margin-left:auto;color:#9aa9a0}.account-profile-settings:hover{color:var(--teal)}
+.account-balance-card,.account-stat-card{justify-content:space-between}.account-balance-card>div,.account-stat-card{display:grid;gap:6px}.account-balance-card span,.account-stat-card span{font-size:11px;color:#819087}.account-balance-card b{font:700 20px 'DM Mono';color:#3d6659}.account-balance-card small,.account-stat-card small{font-size:10px;color:#a0aaa4}.account-balance-card>svg{color:#d18e59}
+.account-stat-card b{font:700 22px 'DM Mono';color:#d1765d}
+.account-usage-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:#dce5dc;border:1px solid #dce5dc;border-radius:10px;overflow:hidden;margin:18px 0 46px}.account-usage-strip>div{background:#fbfdf9;padding:13px 17px;display:flex;align-items:center;gap:9px;color:#85938a;font-size:11px}.account-usage-strip svg{color:#63a691}.account-usage-strip b{color:var(--ink);font:700 12px 'DM Mono';margin-left:5px}
+.account-section{margin-top:42px}.account-section-heading{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:15px}.account-section-heading h2{font:800 25px 'Noto Serif SC',serif;letter-spacing:-.04em;margin:8px 0 0}.account-section-heading>small{font-size:11px;color:#95a099}.account-text-link{display:inline-flex;align-items:center;gap:6px;color:var(--teal);text-decoration:none;font-size:11px}.account-text-link:hover{color:#245d53}
+.account-project-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.account-project-card{border:1px solid #dce5dc;border-radius:10px;background:#fff;padding:17px;min-height:190px;display:flex;flex-direction:column}.account-project-card-top{display:flex;justify-content:space-between;color:#5b927f;font:10px 'DM Mono'}.account-project-card-top small{color:#9da8a1}.account-project-card h3{font-size:16px;margin:15px 0 6px}.account-project-card p{color:#84918a;font-size:11px;line-height:1.6;margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.account-project-meta{display:flex;gap:12px;color:#9aa69e;font-size:10px;margin-top:auto;padding-top:17px}.account-project-open{display:flex;align-items:center;justify-content:space-between;border-top:1px solid #edf1ec;margin-top:13px;padding-top:12px;color:var(--teal);text-decoration:none;font-size:11px}.account-project-open:hover{color:#255e53}
+.account-model-groups{display:grid;gap:18px}.account-model-group{border:1px solid #dce5dc;border-radius:10px;background:#fff;overflow:hidden}.account-model-group-title{display:flex;align-items:center;justify-content:space-between;padding:14px 17px;background:#f8faf6;border-bottom:1px solid #e7eee7}.account-model-group-title b{font-size:13px}.account-model-group-title span{font:10px 'DM Mono';color:#8f9d95}.account-model-list{display:grid}.account-model-row{display:flex;align-items:center;gap:12px;padding:14px 17px;border-bottom:1px solid #edf1ec}.account-model-row:last-child{border-bottom:0}.account-model-icon{width:29px;height:29px;border-radius:8px;display:grid;place-items:center;background:#e9f2e9;color:#559a83}.account-model-main{display:grid;gap:4px;min-width:0;flex:1}.account-model-main b{font-size:12px}.account-model-main span{color:#9aa69e;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.account-model-price{text-align:right;display:grid;gap:4px}.account-model-price b{font:11px 'DM Mono';color:#4d7d6b}.account-model-price small{font-size:10px;color:#a1aba4}
+.account-empty,.account-error{border:1px dashed #cbd9cd;border-radius:10px;background:#fff;padding:32px;text-align:center;color:#89958d;display:grid;justify-items:center;gap:10px}.account-empty p{margin:0;font-size:12px}.account-loading{display:grid;place-items:center;align-content:center;gap:12px;color:#6a9485;font-size:12px}.account-error a{color:var(--teal);text-decoration:none}
+@media(max-width:850px){.account-topbar{gap:15px;padding:0 18px}.account-topbar nav{gap:12px}.account-topbar nav a:nth-child(3),.account-topbar nav a:nth-child(4){display:none}.account-content{padding:38px 18px 55px}.account-profile-grid{grid-template-columns:1fr}.account-project-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){.account-heading{align-items:flex-start;flex-direction:column}.account-heading h1{font-size:32px}.account-workspace-button{width:100%;justify-content:center}.account-topbar{height:68px}.account-brand span{font-size:12px}.account-topbar nav{margin-left:auto}.account-topbar nav a:nth-child(1){display:none}.account-project-grid{grid-template-columns:1fr}.account-usage-strip{grid-template-columns:1fr}.account-model-row{align-items:flex-start}.account-model-price{max-width:44%;}.account-model-price b{white-space:normal;line-height:1.5}}
+
 /* =====================================================================
    INKFRAME WORKBENCH REFRESH
    A cinematic, modern visual layer scoped to the creator workbench.

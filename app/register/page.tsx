@@ -29,7 +29,7 @@ export default function RegisterPage() {
 
   return <main className="auth-shell">
     <div className="auth-card">
-      <div className="brand"><div className="brand-mark"><Sparkles size={17} /></div><span>INKFRAME</span><small>STUDIO</small></div>
+      <a className="brand brand-link" href="/home" aria-label="返回首页"><div className="brand-mark"><Sparkles size={17} /></div><span>INKFRAME</span><small>STUDIO</small></a>
       <h1>创建账号</h1>
       <p className="auth-sub">首个注册的账号将自动成为管理员</p>
       <label className="field"><span>昵称</span><input value={name} onChange={(e) => setName(e.target.value)} placeholder="你的名字" /></label>
